@@ -15,8 +15,10 @@ export type CardConfig = {
 
 export const DEFAULT_CARD_WIDTH = 400;
 export const DEFAULT_CARD_HEIGHT = 100;
-export const SMOKE_VARIANT_COUNT = 6;
+export const SMOKE_VARIANT_COUNT = 12;
 export const SMOKE_TIME_SCALE = 8;
+
+const semanticSpeeds = [1.05, 0.72, 0.82, 0.45, 1.6, 0.28] as const;
 
 export const VERTEX_SHADER = `#version 300 es
 in vec2 position;
@@ -82,13 +84,18 @@ void main(){
     cos(travelTime * 0.83 - phase)
   );
   vec2 macroDrift = travelDrift * 1.8;
-  bool collisionFamily = variant < 2;
+  bool collisionFamily = variant < 2 || variant == 6;
   bool weaveFamily = variant >= 2 && variant < 4;
-  bool vortexFamily = variant >= 4;
+  bool vortexFamily = variant >= 4 && variant < 6;
+  bool diffusionVariant = variant == 7;
+  bool fusionVariant = variant == 8;
+  bool breathVariant = variant == 9;
+  bool fastVariant = variant == 10;
+  bool slowVariant = variant == 11;
   float fogA = fbm(p * 2.0 + flowDrift);
   float fogB = fbm(p * 3.2 + vec2(-flowDrift.y, flowDrift.x) * 0.82 + vec2(7.3));
   float fogC = 0.5;
-  if(weaveFamily){
+  if(weaveFamily || fusionVariant || fastVariant){
     fogC = fbm(p * 4.1 + vec2(-flowDrift.x * 0.68, flowDrift.y * 0.92) + vec2(13.7, 4.9));
   }
   vec2 warped = p + vec2(fogA - 0.5, fogB - 0.5) * 0.34;
@@ -103,6 +110,7 @@ void main(){
   vec2 scaleC = vec2(0.56, 0.94);
   vec2 scaleD = vec2(0.66, 0.94);
   vec4 outer = vec4(0.62, 0.56, 0.72, 0.68);
+  float breathPulse = 1.0;
 
   if(variant == 1){
     centerA = vec2(-0.08, 0.16) + macroDrift * 0.12;
@@ -160,10 +168,83 @@ void main(){
     scaleD = vec2(0.86, 1.12);
     outer = vec4(0.92, 0.88, 0.52, 0.48);
   }
+  if(variant == 6){
+    float impactCycle = 0.5 + 0.5 * sin(flowTime * 0.22 + phase);
+    float approach = mix(0.62, 0.10, impactCycle);
+    shape = warped;
+    shape.x += (fogA - fogB) * 0.54;
+    shape.y += sin(warped.x * 5.4 - flowTime * 0.34 + phase) * 0.11;
+    centerA = vec2(-approach, 0.14);
+    centerB = vec2(approach, -0.14);
+    centerC = vec2(-approach * 0.72, -0.28);
+    centerD = vec2(approach * 0.72, 0.28);
+    scaleA = scaleB = scaleC = scaleD = vec2(0.46, 0.84);
+    outer = vec4(0.74, 0.74, 0.66, 0.66);
+  }
+  if(variant == 7){
+    float diffusionWave = 0.5 + 0.5 * sin(flowTime * 0.09 + phase);
+    float diffusionScale = mix(1.16, 0.72, diffusionWave);
+    shape = warped * diffusionScale;
+    shape += normalize(warped + vec2(0.001)) * (fogA - 0.5) * 0.24;
+    centerA = vec2(0.10, 0.04);
+    centerB = vec2(0.30, -0.08);
+    centerC = vec2(0.50, 0.16);
+    centerD = vec2(0.66, -0.20);
+    scaleA = vec2(0.58, 0.72);
+    scaleB = vec2(0.64, 0.78);
+    scaleC = vec2(0.72, 0.84);
+    scaleD = vec2(0.80, 0.92);
+    outer = mix(vec4(0.54, 0.50, 0.46, 0.42), vec4(0.92, 0.84, 0.76, 0.68), diffusionWave);
+  }
+  if(variant == 8){
+    float fusionShift = sin(flowTime * 0.13 + phase) * 0.16;
+    shape = warped + vec2(fogC - fogB, fogA - fogC) * 0.46;
+    centerA = vec2(-0.04 + fusionShift, 0.12);
+    centerB = vec2(0.20 - fusionShift, -0.10);
+    centerC = vec2(0.42 + fusionShift * 0.60, 0.16);
+    centerD = vec2(0.62 - fusionShift * 0.60, -0.14);
+    scaleA = scaleB = scaleC = scaleD = vec2(0.58, 0.82);
+    outer = vec4(0.84, 0.84, 0.78, 0.76);
+  }
+  if(variant == 9){
+    breathPulse = 0.5 + 0.5 * sin(flowTime * 0.085 + phase);
+    float breathScale = mix(0.82, 1.14, breathPulse);
+    shape = warped * breathScale;
+    centerA = vec2(-0.02, 0.12);
+    centerB = vec2(0.26, -0.14);
+    centerC = vec2(0.52, 0.18);
+    centerD = vec2(0.78, -0.18);
+    scaleA = scaleB = scaleC = scaleD = vec2(0.54, 0.82);
+    outer = mix(vec4(0.86, 0.82, 0.78, 0.72), vec4(0.62, 0.60, 0.56, 0.52), breathPulse);
+  }
+  if(variant == 10){
+    float fastPhase = flowTime * 0.72 + phase;
+    shape = vec2(
+      warped.x + sin(warped.y * 8.0 - fastPhase) * 0.22 + (fogC - 0.5) * 0.28,
+      warped.y + sin(warped.x * 3.0 - fastPhase * 0.60) * 0.05
+    );
+    centerA = vec2(-0.12, 0.34);
+    centerB = vec2(0.18, 0.10);
+    centerC = vec2(0.50, -0.12);
+    centerD = vec2(0.84, -0.34);
+    scaleA = scaleB = scaleC = scaleD = vec2(0.34, 1.72);
+    outer = vec4(0.62, 0.60, 0.58, 0.56);
+  }
+  if(variant == 11){
+    float slowLift = sin(flowTime * 0.035 + phase) * 0.06;
+    shape = warped + vec2((fogA - 0.5) * 0.18, (fogB - 0.5) * 0.12);
+    centerA = vec2(-0.08, 0.18 + slowLift);
+    centerB = vec2(0.28, -0.12 + slowLift * 0.50);
+    centerC = vec2(0.58, 0.22 - slowLift * 0.40);
+    centerD = vec2(0.86, -0.18 - slowLift * 0.60);
+    scaleA = scaleB = scaleC = scaleD = vec2(0.36, 0.68);
+    outer = vec4(0.94, 0.90, 0.86, 0.82);
+  }
 
   if(collisionFamily){
     float impact = fogA - fogB;
-    shape += vec2(impact * (variant == 0 ? 0.42 : 0.30), (fogA + fogB - 1.0) * 0.18);
+    float collisionForce = variant == 6 ? 0.62 : (variant == 0 ? 0.42 : 0.30);
+    shape += vec2(impact * collisionForce, (fogA + fogB - 1.0) * 0.18);
   }
   if(weaveFamily){
     vec2 braid = vec2(fogC - fogB, fogA - fogC);
@@ -191,11 +272,16 @@ void main(){
   float cloudD = 1.0 - smoothstep(0.08, outer.w, length((shape - centerD) * scaleD));
 
   float leftFade = smoothstep(0.01, 0.34, uv.x + fogA * 0.08);
-  float detailC = weaveFamily ? fogC : fogB;
+  float detailC = (weaveFamily || fusionVariant || fastVariant) ? fogC : fogB;
   float layerAlphaA = smoothstep(0.02, 0.82, cloudA) * leftFade * (0.74 + fogA * 0.26);
   float layerAlphaB = smoothstep(0.02, 0.82, cloudB) * leftFade * (0.72 + fogB * 0.28);
   float layerAlphaC = smoothstep(0.02, 0.82, cloudC) * leftFade * (0.76 + detailC * 0.24);
   float layerAlphaD = smoothstep(0.02, 0.82, cloudD) * leftFade * (0.74 + mix(fogA, detailC, 0.5) * 0.26);
+  float breathGain = breathVariant ? mix(0.70, 1.0, breathPulse) : 1.0;
+  layerAlphaA *= breathGain;
+  layerAlphaB *= breathGain;
+  layerAlphaC *= breathGain;
+  layerAlphaD *= breathGain;
   float smokeDensity = max(max(layerAlphaA, layerAlphaB), max(layerAlphaC, layerAlphaD));
   float strength = (collisionFamily ? 0.60 : 0.48) + intensity * 0.30;
 
@@ -230,6 +316,23 @@ void main(){
     float filament = smoothstep(0.12, 0.62, abs(fogA - fogB)) * smokeDensity;
     color = mix(color, mix(colorA, colorB, fogA), filament * 0.16);
     color = mix(color, collisionInk, collisionMask * 0.18);
+  }
+  if(diffusionVariant){
+    color = mix(color, mix(colorA, colorB, 0.34), smokeDensity * 0.08);
+  }
+  if(fusionVariant){
+    color = mix(color, mixedInk, fusionMask * (0.38 + intensity * 0.22));
+    color = mix(color, mix(colorA, colorB, fogC), pairwiseWeave * 0.16);
+  }
+  if(breathVariant){
+    color = mix(color, mixedInk, fusionMask * 0.12 * breathGain);
+  }
+  if(fastVariant){
+    float rushFilament = smoothstep(0.10, 0.58, abs(fogC - fogB)) * smokeDensity;
+    color = mix(color, mix(colorA, colorB, fogC), rushFilament * 0.22);
+  }
+  if(slowVariant){
+    color = mix(color, mixedInk, smokeDensity * 0.08);
   }
 
   color = mix(vec3(0.985), color, 0.88 + smokeDensity * 0.12);
@@ -266,7 +369,14 @@ export function createPreset(seed: number) {
 export function createGallery(seed: number) {
   return Array.from({ length: SMOKE_VARIANT_COUNT }, (_, variant) => {
     const cardSeed = (seed + Math.imul(variant + 1, 0x9e3779b1)) >>> 0;
-    return { ...createPreset(cardSeed), seed: cardSeed, variant };
+    const preset = createPreset(cardSeed);
+    const semanticSpeed = semanticSpeeds[variant - 6];
+    return {
+      ...preset,
+      speed: semanticSpeed ?? preset.speed,
+      seed: cardSeed,
+      variant,
+    };
   });
 }
 

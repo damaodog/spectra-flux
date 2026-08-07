@@ -22,13 +22,25 @@ test("the default preview card is 400 by 100", () => {
   assert.equal(DEFAULT_CARD_HEIGHT, 100);
 });
 
-test("createGallery returns six unique fixed variants", () => {
+test("createGallery returns twelve unique fixed variants", () => {
   const gallery = createGallery(2026);
+  assert.equal(gallery.length, 12);
   assert.equal(gallery.length, SMOKE_VARIANT_COUNT);
-  assert.deepEqual(gallery.map((card) => card.variant), [0, 1, 2, 3, 4, 5]);
-  assert.equal(new Set(gallery.map((card) => card.seed)).size, 6);
+  assert.deepEqual(
+    gallery.map((card) => card.variant),
+    Array.from({ length: 12 }, (_, index) => index),
+  );
+  assert.equal(new Set(gallery.map((card) => card.seed)).size, 12);
   assert.deepEqual(gallery, createGallery(2026));
   assert.notDeepEqual(gallery, createGallery(2027));
+});
+
+test("the six new motion studies keep semantic speed profiles", () => {
+  const gallery = createGallery(2026);
+  assert.deepEqual(
+    gallery.slice(6).map((card) => card.speed),
+    [1.05, 0.72, 0.82, 0.45, 1.6, 0.28],
+  );
 });
 
 test("shader seeds stay inside the precise 16-bit float range", () => {
@@ -98,14 +110,34 @@ test("the shader keeps fast flow and limits the third field to weave variants", 
   assert.match(FRAGMENT_SHADER, /vec2 travelDrift\s*=/);
   assert.match(FRAGMENT_SHADER, /vec2 macroDrift\s*=\s*travelDrift \* 1\.8;/);
   assert.match(FRAGMENT_SHADER, /float horizontalScale\s*=\s*1\.0 \/ 1\.4;/);
-  assert.match(FRAGMENT_SHADER, /bool collisionFamily\s*=\s*variant < 2;/);
-  assert.match(FRAGMENT_SHADER, /bool weaveFamily\s*=\s*variant >= 2 && variant < 4;/);
-  assert.match(FRAGMENT_SHADER, /bool vortexFamily\s*=\s*variant >= 4;/);
   assert.match(
     FRAGMENT_SHADER,
-    /if\(weaveFamily\)\{\s*fogC = fbm\(/,
+    /bool collisionFamily\s*=\s*variant < 2 \|\| variant == 6;/,
+  );
+  assert.match(FRAGMENT_SHADER, /bool weaveFamily\s*=\s*variant >= 2 && variant < 4;/);
+  assert.match(FRAGMENT_SHADER, /bool vortexFamily\s*=\s*variant >= 4 && variant < 6;/);
+  assert.match(
+    FRAGMENT_SHADER,
+    /if\(weaveFamily \|\| fusionVariant \|\| fastVariant\)\{\s*fogC = fbm\(/,
   );
   assert.equal((FRAGMENT_SHADER.match(/= fbm\(/g) || []).length, 3);
+});
+
+test("the shader exposes six new motion identities", () => {
+  const identities = [
+    [6, "impactCycle"],
+    [7, "diffusionWave"],
+    [8, "fusionShift"],
+    [9, "breathPulse"],
+    [10, "fastPhase"],
+    [11, "slowLift"],
+  ];
+
+  identities.forEach(([variant, control]) => {
+    assert.match(FRAGMENT_SHADER, new RegExp(`if\\(variant == ${variant}\\)`));
+    assert.match(FRAGMENT_SHADER, new RegExp(`float ${control}`));
+  });
+  assert.doesNotMatch(FRAGMENT_SHADER, /sampler2D|framebuffer/);
 });
 
 test("fast smoke flow advects forward instead of returning every two seconds", () => {
