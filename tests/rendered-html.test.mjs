@@ -30,6 +30,9 @@ test("server-renders the WebGL card generator", async () => {
   assert.match(html, /<title>LUMA LAB — WebGL Card Generator<\/title>/i);
   assert.match(html, /COLOR AS A LIVING SYSTEM\./);
   assert.match(html, /一键全部随机/);
+  ["01–12", "13–24", "25–36"].forEach((label) => {
+    assert.match(html, new RegExp(label));
+  });
   assert.equal((html.match(/class="card-study"/g) || []).length, 12);
   assert.equal((html.match(/class="preview-card"/g) || []).length, 12);
   assert.equal((html.match(/class="card-copy"/g) || []).length, 12);
@@ -38,17 +41,17 @@ test("server-renders the WebGL card generator", async () => {
   assert.equal((html.match(/class="card-meta"/g) || []).length, 0);
   const studyMeta = [
     "01 · 柔雾扩散",
-    "02 · 彩墨叠层",
+    "02 · 薄纱碰撞",
     "03 · 横向薄纱",
-    "04 · 墨滴晕染",
+    "04 · 薄纱断层",
     "05 · 斜向漂移",
-    "06 · 深景云雾",
-    "07 · 双流撞击",
-    "08 · 墨云扩散",
-    "09 · 色域融合",
-    "10 · 潮汐呼吸",
+    "06 · 丝流拉伸",
+    "07 · 双层回流",
+    "08 · 绸带折返",
+    "09 · 墨丝破浪",
+    "10 · 层云错位",
     "11 · 急速奔流",
-    "12 · 慢雾沉降",
+    "12 · 慢纱呼吸",
   ];
   studyMeta.forEach((label) => assert.match(html, new RegExp(label)));
   assert.equal((html.match(/--card-width:400px/g) || []).length, 12);
@@ -57,6 +60,7 @@ test("server-renders the WebGL card generator", async () => {
     html,
     /class="card-study"><span class="study-meta">01 · 柔雾扩散<\/span><article/,
   );
+  assert.doesNotMatch(html, /13 · 油膜涌色/);
   assert.doesNotMatch(
     html,
     /class="(?:card-label|card-index|render-label|webgl-error|style-heading|style-tab)/,
@@ -79,9 +83,18 @@ test("the gallery shares one WebGL atlas across twelve 2D canvases", async () =>
   assert.match(source, /context\?\.drawImage\(/);
   assert.match(
     source,
-    /const ATLAS_ROWS = Math\.ceil\(SMOKE_VARIANT_COUNT \/ ATLAS_COLUMNS\);/,
+    /const ATLAS_ROWS = Math\.ceil\(MOTION_PAGE_SIZE \/ ATLAS_COLUMNS\);/,
   );
   assert.match(source, /configs\.length > 6 \? 1\.5 : 2/);
+  assert.match(
+    source,
+    /cards\.slice\(pageStart, pageStart \+ MOTION_PAGE_SIZE\)/,
+  );
+  assert.match(
+    source,
+    /aria-current=\{pageIndex === index \? "page" : undefined\}/,
+  );
+  assert.match(source, /setPageIndex\(0\)/);
   assert.doesNotMatch(source, /function WebGLPreview|activeIndex|style-tabs/);
 });
 

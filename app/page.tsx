@@ -8,26 +8,17 @@ import {
   DEFAULT_CARD_WIDTH,
   FRAGMENT_SHADER,
   hexToRgb,
-  SMOKE_VARIANT_COUNT,
   SMOKE_TIME_SCALE,
   toShaderSeed,
   VERTEX_SHADER,
   type CardConfig,
 } from "./card-core";
+import { MOTION_PAGE_SIZE, MOTION_STUDIES } from "./motion-catalog";
 
-const variantNames = [
-  "柔雾扩散",
-  "彩墨叠层",
-  "横向薄纱",
-  "墨滴晕染",
-  "斜向漂移",
-  "深景云雾",
-  "双流撞击",
-  "墨云扩散",
-  "色域融合",
-  "潮汐呼吸",
-  "急速奔流",
-  "慢雾沉降",
+const pages = [
+  { range: "01–12", title: "雾与薄纱" },
+  { range: "13–24", title: "光学材质" },
+  { range: "25–36", title: "流体力场" },
 ] as const;
 
 const sharedInitial = {
@@ -42,7 +33,7 @@ const makeCards = (seed: number): CardConfig[] =>
   createGallery(seed).map((visual, variant) => ({
     ...sharedInitial,
     ...visual,
-    label: `STYLE ${String(variant + 1).padStart(2, "0")} · ${variantNames[variant]}`,
+    label: `STYLE ${String(variant + 1).padStart(2, "0")} · ${MOTION_STUDIES[variant].name}`,
   }));
 
 type GalleryProps = {
@@ -51,7 +42,7 @@ type GalleryProps = {
 };
 
 const ATLAS_COLUMNS = 2;
-const ATLAS_ROWS = Math.ceil(SMOKE_VARIANT_COUNT / ATLAS_COLUMNS);
+const ATLAS_ROWS = Math.ceil(MOTION_PAGE_SIZE / ATLAS_COLUMNS);
 
 function AtlasGallery({ configs, playing }: GalleryProps) {
   const canvasRefs = useRef<Array<HTMLCanvasElement | null>>([]);
@@ -229,17 +220,18 @@ function AtlasGallery({ configs, playing }: GalleryProps) {
           "--card-width": `${config.width}px`,
           "--card-height": `${config.height}px`,
         } as CSSProperties;
-        const studyNumber = String(index + 1).padStart(2, "0");
+        const studyNumber = String(config.variant + 1).padStart(2, "0");
+        const studyName = MOTION_STUDIES[config.variant].name;
 
         return (
           <div className="card-study" key={config.variant}>
             <span className="study-meta">
-              {`${studyNumber} · ${variantNames[index]}`}
+              {`${studyNumber} · ${studyName}`}
             </span>
             <article
               className="preview-card"
               style={cardStyle}
-              aria-label={`SPECTRA ${studyNumber} ${variantNames[index]}`}
+              aria-label={`SPECTRA ${studyNumber} ${studyName}`}
             >
               <div className="card-copy">
                 <h2>{config.title}</h2>
@@ -264,7 +256,10 @@ function AtlasGallery({ configs, playing }: GalleryProps) {
 export default function Home() {
   const [cards, setCards] = useState(() => makeCards(20260807));
   const [playing, setPlaying] = useState(true);
-  const [notice, setNotice] = useState("十二款墨流同时展示");
+  const [pageIndex, setPageIndex] = useState(0);
+  const [notice, setNotice] = useState("三十六款动态已载入");
+  const pageStart = pageIndex * MOTION_PAGE_SIZE;
+  const visibleCards = cards.slice(pageStart, pageStart + MOTION_PAGE_SIZE);
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -281,7 +276,7 @@ export default function Home() {
     setCards((current) =>
       current.map((card, index) => ({ ...card, ...visuals[index] })),
     );
-    setNotice(`十二款已全部随机 · ${masterSeed}`);
+    setNotice(`三十六款已全部随机 · ${masterSeed}`);
   };
 
   return (
@@ -297,16 +292,16 @@ export default function Home() {
 
       <section className="intro" id="top">
         <div>
-          <span className="eyebrow">TWELVE GENERATIVE SMOKE STUDIES / 2026</span>
-          <h1>十二张卡片，<br />十二种墨流。</h1>
+          <span className="eyebrow">THIRTY-SIX GENERATIVE MOTION STUDIES / 2026</span>
+          <h1>三十六张卡片，<br />三十六种动态。</h1>
         </div>
         <p>
-          十二张卡片由一个 WebGL 图集同步驱动。每次随机都会更新十二套配色、种子与流动结构，
-          同时保持页面轻量流畅。
+          三页分别探索雾与薄纱、光学材质和流体力场。每页仅驱动十二张卡片，
+          一次随机则会更新全部三十六套配色与细节。
         </p>
       </section>
 
-      <section className="workspace" aria-label="十二张动态墨流卡片">
+      <section className="workspace" aria-label="三十六张动态效果卡片">
         <div className="toolbar" aria-label="常用操作">
           <button className="button button-primary" onClick={randomizeAll}>
             <span aria-hidden="true">✦</span> 一键全部随机
@@ -318,7 +313,8 @@ export default function Home() {
             className="button button-quiet"
             onClick={() => {
               setCards(makeCards(20260807));
-              setNotice("已恢复十二款默认墨流");
+              setPageIndex(0);
+              setNotice("已恢复三十六款默认动态");
             }}
           >
             重置
@@ -326,11 +322,29 @@ export default function Home() {
           <span className="toolbar-status" aria-live="polite">{notice}</span>
         </div>
 
-        <AtlasGallery configs={cards} playing={playing} />
+        <nav className="page-tabs" aria-label="效果分页">
+          {pages.map((page, index) => (
+            <button
+              key={page.range}
+              className="page-tab"
+              aria-current={pageIndex === index ? "page" : undefined}
+              onClick={() => setPageIndex(index)}
+            >
+              <span>{page.range}</span>
+              <small>{page.title}</small>
+            </button>
+          ))}
+        </nav>
+
+        <AtlasGallery
+          key={pageIndex}
+          configs={visibleCards}
+          playing={playing}
+        />
       </section>
 
       <footer>
-        <span>ONE WEBGL CONTEXT · TWELVE INK STUDIES</span>
+        <span>ONE WEBGL CONTEXT · THIRTY-SIX MOTION STUDIES</span>
         <span>400 × 100 · COLOR AREA 75%</span>
       </footer>
     </main>
