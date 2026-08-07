@@ -193,7 +193,7 @@ function AtlasGallery({ configs, playing }: GalleryProps) {
     } catch (error) {
       console.warn("Luma atlas WebGL fallback", error);
     }
-  }, []);
+  }, [configs.length]);
 
   useEffect(() => {
     let frame = 0;
