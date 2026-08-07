@@ -55,17 +55,24 @@ float fbm(vec2 p){
 void main(){
   vec2 uv = gl_FragCoord.xy / resolution.xy;
   vec2 p = (uv - 0.5) * vec2(resolution.x / resolution.y, 1.0);
-  float drift = time * 0.12;
+  float phase = seed * 0.013;
+  vec2 flowWarp = vec2(
+    sin(p.y * 4.2 + time * 1.15 + phase),
+    cos(p.x * 3.7 - time * 0.92 - phase)
+  );
+  p += flowWarp * (0.055 + intensity * 0.07);
+  float drift = time * 0.22;
   float fog = fbm(p * 2.7 + vec2(drift, -drift * 0.6));
   float ripple = 0.5 + 0.5 * sin(
     15.0 * length(p - vec2(sin(time * 0.18), cos(time * 0.15)) * 0.16)
     - time * 1.4 + fog * 3.2
   );
+  float swell = 0.5 + 0.5 * sin(p.x * 5.0 + p.y * 3.0 - time * 1.1 + fog * 2.0);
   float veins = smoothstep(0.45, 0.82, sin((p.x + fog * 0.42) * 22.0) * 0.5 + 0.5);
   vec2 cell = floor((p + vec2(drift * 0.18, 0.0)) * 72.0);
   float particles = smoothstep(0.982, 1.0, hash(cell));
   float blend = clamp(
-    0.1 + fog * 0.66 + ripple * 0.13 * intensity + veins * 0.08 * intensity + particles * 0.16,
+    0.08 + fog * 0.54 + ripple * 0.17 * intensity + swell * 0.14 * intensity + veins * 0.07 * intensity + particles * 0.16,
     0.0,
     1.0
   );

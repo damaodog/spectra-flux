@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildEmbed, createPreset } from "../app/card-core.ts";
+import {
+  buildEmbed,
+  createPreset,
+  FRAGMENT_SHADER,
+} from "../app/card-core.ts";
 
 test("createPreset is deterministic for a seed", () => {
   assert.deepEqual(createPreset(2026), createPreset(2026));
@@ -28,4 +32,9 @@ test("buildEmbed escapes copy and has no network dependency", () => {
   assert.match(html, /getContext\("webgl2"/);
   assert.match(html, /2026/);
   assert.doesNotMatch(html, /https?:\/\//);
+});
+
+test("the shader applies a time-driven spatial warp", () => {
+  assert.match(FRAGMENT_SHADER, /vec2 flowWarp\s*=/);
+  assert.match(FRAGMENT_SHADER, /p \+= flowWarp/);
 });
