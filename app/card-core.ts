@@ -1,3 +1,5 @@
+import { MOTION_STUDIES } from "./motion-catalog.ts";
+
 export type CardConfig = {
   title: string;
   subtitle: string;
@@ -11,14 +13,14 @@ export type CardConfig = {
   width: number;
   height: number;
   variant: number;
+  kernel: number;
+  params: readonly [number, number, number, number];
 };
 
 export const DEFAULT_CARD_WIDTH = 400;
 export const DEFAULT_CARD_HEIGHT = 100;
-export const SMOKE_VARIANT_COUNT = 12;
+export const SMOKE_VARIANT_COUNT = MOTION_STUDIES.length;
 export const SMOKE_TIME_SCALE = 8;
-
-const semanticSpeeds = [1.05, 0.72, 0.82, 0.45, 1.6, 0.28] as const;
 
 export const VERTEX_SHADER = `#version 300 es
 in vec2 position;
@@ -367,15 +369,16 @@ export function createPreset(seed: number) {
 }
 
 export function createGallery(seed: number) {
-  return Array.from({ length: SMOKE_VARIANT_COUNT }, (_, variant) => {
+  return MOTION_STUDIES.map((study, variant) => {
     const cardSeed = (seed + Math.imul(variant + 1, 0x9e3779b1)) >>> 0;
     const preset = createPreset(cardSeed);
-    const semanticSpeed = semanticSpeeds[variant - 6];
     return {
       ...preset,
-      speed: semanticSpeed ?? preset.speed,
+      speed: study.speed ?? preset.speed,
       seed: cardSeed,
       variant,
+      kernel: study.kernel,
+      params: study.params,
     };
   });
 }

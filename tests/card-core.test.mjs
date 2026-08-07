@@ -11,6 +11,11 @@ import {
   SMOKE_TIME_SCALE,
   toShaderSeed,
 } from "../app/card-core.ts";
+import {
+  MOTION_PAGE_SIZE,
+  MOTION_STUDIES,
+  getMotionPage,
+} from "../app/motion-catalog.ts";
 
 test("createPreset is deterministic for a seed", () => {
   assert.deepEqual(createPreset(2026), createPreset(2026));
@@ -22,25 +27,51 @@ test("the default preview card is 400 by 100", () => {
   assert.equal(DEFAULT_CARD_HEIGHT, 100);
 });
 
-test("createGallery returns twelve unique fixed variants", () => {
+test("the catalog exposes thirty-six stable motion identities", () => {
+  assert.equal(MOTION_PAGE_SIZE, 12);
+  assert.equal(MOTION_STUDIES.length, 36);
+  assert.equal(new Set(MOTION_STUDIES.map(({ id }) => id)).size, 36);
+  assert.equal(new Set(MOTION_STUDIES.map(({ name }) => name)).size, 36);
+  assert.deepEqual(
+    [0, 2, 4, 10].map((index) => MOTION_STUDIES[index].name),
+    ["柔雾扩散", "横向薄纱", "斜向漂移", "急速奔流"],
+  );
+});
+
+test("the catalog splits into three exact pages", () => {
+  assert.deepEqual(
+    getMotionPage(0).map(({ id }) => id),
+    Array.from({ length: 12 }, (_, index) => index),
+  );
+  assert.deepEqual(
+    getMotionPage(1).map(({ id }) => id),
+    Array.from({ length: 12 }, (_, index) => index + 12),
+  );
+  assert.deepEqual(
+    getMotionPage(2).map(({ id }) => id),
+    Array.from({ length: 12 }, (_, index) => index + 24),
+  );
+  assert.deepEqual(getMotionPage(99), []);
+});
+
+test("createGallery returns thirty-six deterministic configured studies", () => {
   const gallery = createGallery(2026);
-  assert.equal(gallery.length, 12);
+  assert.equal(gallery.length, 36);
   assert.equal(gallery.length, SMOKE_VARIANT_COUNT);
   assert.deepEqual(
     gallery.map((card) => card.variant),
-    Array.from({ length: 12 }, (_, index) => index),
+    Array.from({ length: 36 }, (_, index) => index),
   );
-  assert.equal(new Set(gallery.map((card) => card.seed)).size, 12);
+  assert.equal(new Set(gallery.map((card) => card.seed)).size, 36);
   assert.deepEqual(gallery, createGallery(2026));
   assert.notDeepEqual(gallery, createGallery(2027));
-});
-
-test("the six new motion studies keep semantic speed profiles", () => {
-  const gallery = createGallery(2026);
-  assert.deepEqual(
-    gallery.slice(6).map((card) => card.speed),
-    [1.05, 0.72, 0.82, 0.45, 1.6, 0.28],
-  );
+  gallery.forEach((study, index) => {
+    assert.equal(study.kernel, MOTION_STUDIES[index].kernel);
+    assert.deepEqual(study.params, MOTION_STUDIES[index].params);
+    if (MOTION_STUDIES[index].speed !== null) {
+      assert.equal(study.speed, MOTION_STUDIES[index].speed);
+    }
+  });
 });
 
 test("shader seeds stay inside the precise 16-bit float range", () => {
