@@ -30,18 +30,32 @@ test("server-renders the WebGL card generator", async () => {
   assert.match(html, /<title>LUMA LAB — WebGL Card Generator<\/title>/i);
   assert.match(html, /COLOR AS A LIVING SYSTEM\./);
   assert.match(html, /一键全部随机/);
-  assert.match(html, /查看 01 柔雾扩散/);
-  assert.match(html, /查看 06 深景云雾/);
-  assert.equal((html.match(/class="preview-card"/g) || []).length, 1);
-  assert.equal((html.match(/<canvas/g) || []).length, 1);
-  assert.equal((html.match(/class="style-tab(?: |")/g) || []).length, 6);
-  assert.match(html, /--card-width:400px/);
-  assert.match(html, /--card-height:100px/);
+  assert.equal((html.match(/class="preview-card"/g) || []).length, 6);
+  assert.equal((html.match(/class="card-copy"/g) || []).length, 6);
+  assert.equal((html.match(/<canvas/g) || []).length, 6);
+  assert.equal((html.match(/--card-width:400px/g) || []).length, 6);
+  assert.equal((html.match(/--card-height:100px/g) || []).length, 6);
+  assert.doesNotMatch(
+    html,
+    /class="(?:card-label|card-index|render-label|webgl-error|style-heading|style-tab)/,
+  );
   assert.doesNotMatch(html, /复制此样式|六张共享设置|手动复制 HTML/);
   assert.doesNotMatch(
     html,
     /codex-preview|react-loading-skeleton|Building your site/i,
   );
+});
+
+test("the gallery shares one WebGL atlas across six 2D canvases", async () => {
+  const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+
+  assert.equal((source.match(/getContext\("webgl2"/g) || []).length, 1);
+  assert.match(source, /document\.createElement\("canvas"\)/);
+  assert.match(source, /getContext\("2d"\)/);
+  assert.match(source, /paramsRef\.current\.forEach\(\(config, index\)/);
+  assert.match(source, /gl\.viewport\(atlasX, atlasY, tileWidth, tileHeight\)/);
+  assert.match(source, /context\?\.drawImage\(/);
+  assert.doesNotMatch(source, /function WebGLPreview|activeIndex|style-tabs/);
 });
 
 test("the whole card lifts on precise-pointer hover and respects reduced motion", async () => {

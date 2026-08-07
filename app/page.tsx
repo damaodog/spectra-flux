@@ -38,54 +38,61 @@ const makeCards = (seed: number): CardConfig[] =>
     label: `STYLE ${String(variant + 1).padStart(2, "0")} · ${variantNames[variant]}`,
   }));
 
-type PreviewProps = {
-  config: CardConfig;
+type GalleryProps = {
+  configs: CardConfig[];
   playing: boolean;
 };
 
-function WebGLPreview({ config, playing }: PreviewProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const paramsRef = useRef(config);
+const ATLAS_COLUMNS = 2;
+const ATLAS_ROWS = 3;
+
+function AtlasGallery({ configs, playing }: GalleryProps) {
+  const canvasRefs = useRef<Array<HTMLCanvasElement | null>>([]);
+  const paramsRef = useRef(configs);
   const drawRef = useRef<((time: number) => void) | null>(null);
-  const [error, setError] = useState("");
+  const lastTimeRef = useRef(0);
 
   useEffect(() => {
-    paramsRef.current = config;
-  }, [config]);
+    paramsRef.current = configs;
+    drawRef.current?.(lastTimeRef.current);
+  }, [configs]);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    const gl = canvas?.getContext("webgl2", {
+    const targets = canvasRefs.current.filter(
+      (canvas): canvas is HTMLCanvasElement => Boolean(canvas),
+    );
+    if (targets.length !== configs.length) return;
+
+    const source = document.createElement("canvas");
+    const gl = source.getContext("webgl2", {
       alpha: false,
       antialias: false,
+      preserveDrawingBuffer: true,
     });
+    const contexts = targets.map((canvas) => canvas.getContext("2d"));
+    if (!gl || contexts.some((context) => !context)) return;
 
-    if (!canvas || !gl) {
-      setError("此设备不支持 WebGL2，已显示静态渐变");
-      return;
-    }
-
-    const compile = (type: number, source: string) => {
+    const compile = (type: number, shaderSource: string) => {
       const shader = gl.createShader(type);
-      if (!shader) throw new Error("无法创建着色器");
-      gl.shaderSource(shader, source);
+      if (!shader) throw new Error("Unable to create shader");
+      gl.shaderSource(shader, shaderSource);
       gl.compileShader(shader);
       if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        throw new Error(gl.getShaderInfoLog(shader) || "着色器编译失败");
+        throw new Error(gl.getShaderInfoLog(shader) || "Shader compile failed");
       }
       return shader;
     };
 
     try {
       const program = gl.createProgram();
-      if (!program) throw new Error("无法创建 WebGL 程序");
+      if (!program) return;
       const vertex = compile(gl.VERTEX_SHADER, VERTEX_SHADER);
       const fragment = compile(gl.FRAGMENT_SHADER, FRAGMENT_SHADER);
       gl.attachShader(program, vertex);
       gl.attachShader(program, fragment);
       gl.linkProgram(program);
       if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-        throw new Error(gl.getProgramInfoLog(program) || "着色器链接失败");
+        throw new Error(gl.getProgramInfoLog(program) || "Shader link failed");
       }
       gl.useProgram(program);
 
@@ -102,6 +109,7 @@ function WebGLPreview({ config, playing }: PreviewProps) {
 
       const uniforms = {
         resolution: gl.getUniformLocation(program, "resolution"),
+        viewportOrigin: gl.getUniformLocation(program, "viewportOrigin"),
         time: gl.getUniformLocation(program, "time"),
         seed: gl.getUniformLocation(program, "seed"),
         intensity: gl.getUniformLocation(program, "intensity"),
@@ -110,52 +118,80 @@ function WebGLPreview({ config, playing }: PreviewProps) {
         colorB: gl.getUniformLocation(program, "colorB"),
       };
 
-      const resize = () => {
-        const box = canvas.getBoundingClientRect();
-        const ratio = Math.min(window.devicePixelRatio || 1, 2);
-        canvas.width = Math.max(1, Math.round(box.width * ratio));
-        canvas.height = Math.max(1, Math.round(box.height * ratio));
-        gl.viewport(0, 0, canvas.width, canvas.height);
-        drawRef.current?.(0);
-      };
+      let tileWidth = 1;
+      let tileHeight = 1;
 
       drawRef.current = (now) => {
-        const current = paramsRef.current;
-        gl.uniform2f(uniforms.resolution, canvas.width, canvas.height);
-        gl.uniform1f(
-          uniforms.time,
-          now * 0.001 * current.speed * SMOKE_TIME_SCALE,
-        );
-        gl.uniform1f(uniforms.seed, toShaderSeed(current.seed));
-        gl.uniform1f(uniforms.intensity, current.intensity);
-        gl.uniform1i(uniforms.variant, current.variant);
-        gl.uniform3fv(uniforms.colorA, hexToRgb(current.colorA));
-        gl.uniform3fv(uniforms.colorB, hexToRgb(current.colorB));
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        lastTimeRef.current = now;
+        gl.enable(gl.SCISSOR_TEST);
+        paramsRef.current.forEach((config, index) => {
+          const column = index % ATLAS_COLUMNS;
+          const row = Math.floor(index / ATLAS_COLUMNS);
+          const atlasX = column * tileWidth;
+          const atlasY = (ATLAS_ROWS - row - 1) * tileHeight;
+          gl.viewport(atlasX, atlasY, tileWidth, tileHeight);
+          gl.scissor(atlasX, atlasY, tileWidth, tileHeight);
+          gl.uniform2f(uniforms.resolution, tileWidth, tileHeight);
+          gl.uniform2f(uniforms.viewportOrigin, atlasX, atlasY);
+          gl.uniform1f(
+            uniforms.time,
+            now * 0.001 * config.speed * SMOKE_TIME_SCALE,
+          );
+          gl.uniform1f(uniforms.seed, toShaderSeed(config.seed));
+          gl.uniform1f(uniforms.intensity, config.intensity);
+          gl.uniform1i(uniforms.variant, config.variant);
+          gl.uniform3fv(uniforms.colorA, hexToRgb(config.colorA));
+          gl.uniform3fv(uniforms.colorB, hexToRgb(config.colorB));
+          gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        });
+
+        contexts.forEach((context, index) => {
+          const target = targets[index];
+          const sourceX = (index % ATLAS_COLUMNS) * tileWidth;
+          const sourceY = Math.floor(index / ATLAS_COLUMNS) * tileHeight;
+          context?.clearRect(0, 0, target.width, target.height);
+          context?.drawImage(
+            source,
+            sourceX,
+            sourceY,
+            tileWidth,
+            tileHeight,
+            0,
+            0,
+            target.width,
+            target.height,
+          );
+        });
+      };
+
+      const resize = () => {
+        const box = targets[0].getBoundingClientRect();
+        const ratio = Math.min(window.devicePixelRatio || 1, 2);
+        tileWidth = Math.max(1, Math.round(box.width * ratio));
+        tileHeight = Math.max(1, Math.round(box.height * ratio));
+        source.width = tileWidth * ATLAS_COLUMNS;
+        source.height = tileHeight * ATLAS_ROWS;
+        targets.forEach((target) => {
+          target.width = tileWidth;
+          target.height = tileHeight;
+        });
+        drawRef.current?.(lastTimeRef.current);
       };
 
       const observer = new ResizeObserver(resize);
-      observer.observe(canvas);
+      targets.forEach((target) => observer.observe(target));
       resize();
-      setError("");
-
-      const contextLost = (event: Event) => {
-        event.preventDefault();
-        setError("WebGL 暂时中断，请刷新页面恢复");
-      };
-      canvas.addEventListener("webglcontextlost", contextLost);
 
       return () => {
         observer.disconnect();
-        canvas.removeEventListener("webglcontextlost", contextLost);
         gl.deleteProgram(program);
         gl.deleteShader(vertex);
         gl.deleteShader(fragment);
         gl.deleteBuffer(buffer);
         drawRef.current = null;
       };
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "WebGL 初始化失败");
+    } catch (error) {
+      console.warn("Luma atlas WebGL fallback", error);
     }
   }, []);
 
@@ -166,25 +202,50 @@ function WebGLPreview({ config, playing }: PreviewProps) {
       frame = requestAnimationFrame(draw);
     };
     if (playing) frame = requestAnimationFrame(draw);
-    else drawRef.current?.(0);
     return () => cancelAnimationFrame(frame);
   }, [playing]);
 
   return (
-    <>
-      <canvas ref={canvasRef} aria-hidden="true" />
-      <span className="render-label">{error ? "CSS FALLBACK" : "WEBGL 2 / GLSL"}</span>
-      {error && <span className="webgl-error">{error}</span>}
-    </>
+    <div className="atlas-gallery">
+      {configs.map((config, index) => {
+        const cardStyle = {
+          "--card-a": config.colorA,
+          "--card-b": config.colorB,
+          "--card-radius": `${config.radius}px`,
+          "--card-width": `${config.width}px`,
+          "--card-height": `${config.height}px`,
+        } as CSSProperties;
+
+        return (
+          <article
+            className="preview-card"
+            style={cardStyle}
+            aria-label={`SPECTRA ${String(index + 1).padStart(2, "0")}`}
+            key={config.variant}
+          >
+            <div className="card-copy">
+              <h2>{config.title}</h2>
+              <p>{config.subtitle}</p>
+            </div>
+            <div className="card-visual">
+              <canvas
+                ref={(canvas) => {
+                  canvasRefs.current[index] = canvas;
+                }}
+                aria-hidden="true"
+              />
+            </div>
+          </article>
+        );
+      })}
+    </div>
   );
 }
 
 export default function Home() {
   const [cards, setCards] = useState(() => makeCards(20260807));
-  const [activeIndex, setActiveIndex] = useState(0);
   const [playing, setPlaying] = useState(true);
-  const [notice, setNotice] = useState("当前显示 01 · 柔雾扩散");
-  const activeCard = cards[activeIndex];
+  const [notice, setNotice] = useState("六款墨流同时展示");
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -204,14 +265,6 @@ export default function Home() {
     setNotice(`六款已全部随机 · ${masterSeed}`);
   };
 
-  const cardStyle = {
-    "--card-a": activeCard.colorA,
-    "--card-b": activeCard.colorB,
-    "--card-radius": `${activeCard.radius}px`,
-    "--card-width": `${activeCard.width}px`,
-    "--card-height": `${activeCard.height}px`,
-  } as CSSProperties;
-
   return (
     <main className="studio">
       <header className="studio-header">
@@ -226,15 +279,15 @@ export default function Home() {
       <section className="intro" id="top">
         <div>
           <span className="eyebrow">SIX GENERATIVE SMOKE STUDIES / 2026</span>
-          <h1>一张卡片，<br />六种彩雾。</h1>
+          <h1>六张卡片，<br />六种墨流。</h1>
         </div>
         <p>
-          页面始终只渲染一个 WebGL 画布。用编号切换六种烟雾结构，
-          点击一次即可让六款获得各自不同的配色、种子与动态。
+          六张卡片由一个 WebGL 图集同步驱动。每次随机都会更新六套配色、种子与流动结构，
+          同时保持页面轻量流畅。
         </p>
       </section>
 
-      <section className="workspace" aria-label="单张动态彩雾卡片">
+      <section className="workspace" aria-label="六张动态墨流卡片">
         <div className="toolbar" aria-label="常用操作">
           <button className="button button-primary" onClick={randomizeAll}>
             <span aria-hidden="true">✦</span> 一键全部随机
@@ -246,8 +299,7 @@ export default function Home() {
             className="button button-quiet"
             onClick={() => {
               setCards(makeCards(20260807));
-              setActiveIndex(0);
-              setNotice("已恢复默认 · 01 柔雾扩散");
+              setNotice("已恢复六款默认墨流");
             }}
           >
             重置
@@ -255,53 +307,12 @@ export default function Home() {
           <span className="toolbar-status" aria-live="polite">{notice}</span>
         </div>
 
-        <div className="single-preview">
-          <div className="style-heading" aria-live="polite">
-            <b>{String(activeIndex + 1).padStart(2, "0")}</b>
-            <span>{variantNames[activeIndex]}</span>
-          </div>
-
-          <article className="preview-card" style={cardStyle}>
-            <div className="card-copy">
-              <span className="card-label">{activeCard.label}</span>
-              <h2>{activeCard.title}</h2>
-              <p>{activeCard.subtitle}</p>
-              <div className="card-index">
-                <span>SEED</span>
-                <b>{String(activeCard.seed).padStart(10, "0").slice(-10)}</b>
-              </div>
-            </div>
-            <div className="card-visual">
-              <WebGLPreview
-                key={activeCard.variant}
-                config={activeCard}
-                playing={playing}
-              />
-            </div>
-          </article>
-
-          <nav className="style-tabs" aria-label="选择烟雾样式">
-            {variantNames.map((name, index) => (
-              <button
-                className={`style-tab${activeIndex === index ? " is-active" : ""}`}
-                aria-label={`查看 ${String(index + 1).padStart(2, "0")} ${name}`}
-                aria-pressed={activeIndex === index}
-                onClick={() => {
-                  setActiveIndex(index);
-                  setNotice(`当前显示 ${String(index + 1).padStart(2, "0")} · ${name}`);
-                }}
-                key={name}
-              >
-                {String(index + 1).padStart(2, "0")}
-              </button>
-            ))}
-          </nav>
-        </div>
+        <AtlasGallery configs={cards} playing={playing} />
       </section>
 
       <footer>
-        <span>ONE CANVAS · SIX SMOKE STUDIES</span>
-        <span>400 × 100 · COLOR AREA 65%</span>
+        <span>ONE WEBGL CONTEXT · SIX INK STUDIES</span>
+        <span>400 × 100 · COLOR AREA 75%</span>
       </footer>
     </main>
   );
