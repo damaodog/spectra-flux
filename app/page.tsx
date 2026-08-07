@@ -4,38 +4,49 @@ import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import {
   buildEmbed,
-  createPreset,
+  createGallery,
+  DEFAULT_CARD_HEIGHT,
+  DEFAULT_CARD_WIDTH,
   FRAGMENT_SHADER,
   hexToRgb,
   VERTEX_SHADER,
   type CardConfig,
 } from "./card-core";
 
-const initial: CardConfig = {
+const variantNames = [
+  "柔雾扩散",
+  "彩墨叠层",
+  "横向薄纱",
+  "墨滴晕染",
+  "斜向漂移",
+  "深景云雾",
+] as const;
+
+const sharedInitial = {
   title: "SPECTRA",
   subtitle: "COLOR AS A LIVING SYSTEM.",
-  label: "GENERATIVE WEBGL / 001",
-  colorA: "#ff896f",
-  colorB: "#788dff",
-  seed: 20260807,
-  speed: 0.8,
-  intensity: 0.72,
-  radius: 64,
-  width: 1200,
-  height: 420,
-  variant: 0,
+  radius: 54,
+  width: DEFAULT_CARD_WIDTH,
+  height: DEFAULT_CARD_HEIGHT,
 };
+
+const makeCards = (seed: number): CardConfig[] =>
+  createGallery(seed).map((visual, variant) => ({
+    ...sharedInitial,
+    ...visual,
+    label: `STYLE ${String(variant + 1).padStart(2, "0")} · ${variantNames[variant]}`,
+  }));
 
 type PreviewProps = {
   config: CardConfig;
   playing: boolean;
-  onError: (message: string) => void;
 };
 
-function WebGLPreview({ config, playing, onError }: PreviewProps) {
+function WebGLPreview({ config, playing }: PreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const paramsRef = useRef(config);
   const drawRef = useRef<((time: number) => void) | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     paramsRef.current = config;
@@ -49,7 +60,7 @@ function WebGLPreview({ config, playing, onError }: PreviewProps) {
     });
 
     if (!canvas || !gl) {
-      onError("此设备不支持 WebGL2，已显示静态渐变");
+      setError("此设备不支持 WebGL2，已显示静态渐变");
       return;
     }
 
@@ -109,26 +120,24 @@ function WebGLPreview({ config, playing, onError }: PreviewProps) {
 
       drawRef.current = (now) => {
         const current = paramsRef.current;
-        const colorA = hexToRgb(current.colorA);
-        const colorB = hexToRgb(current.colorB);
         gl.uniform2f(uniforms.resolution, canvas.width, canvas.height);
         gl.uniform1f(uniforms.time, now * 0.001 * current.speed);
         gl.uniform1f(uniforms.seed, current.seed);
         gl.uniform1f(uniforms.intensity, current.intensity);
         gl.uniform1i(uniforms.variant, current.variant);
-        gl.uniform3fv(uniforms.colorA, colorA);
-        gl.uniform3fv(uniforms.colorB, colorB);
+        gl.uniform3fv(uniforms.colorA, hexToRgb(current.colorA));
+        gl.uniform3fv(uniforms.colorB, hexToRgb(current.colorB));
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       };
 
       const observer = new ResizeObserver(resize);
       observer.observe(canvas);
       resize();
-      onError("");
+      setError("");
 
       const contextLost = (event: Event) => {
         event.preventDefault();
-        onError("WebGL 暂时中断，请刷新页面恢复");
+        setError("WebGL 暂时中断，请刷新页面恢复");
       };
       canvas.addEventListener("webglcontextlost", contextLost);
 
@@ -141,10 +150,10 @@ function WebGLPreview({ config, playing, onError }: PreviewProps) {
         gl.deleteBuffer(buffer);
         drawRef.current = null;
       };
-    } catch (error) {
-      onError(error instanceof Error ? error.message : "WebGL 初始化失败");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "WebGL 初始化失败");
     }
-  }, [onError]);
+  }, []);
 
   useEffect(() => {
     let frame = 0;
@@ -157,15 +166,20 @@ function WebGLPreview({ config, playing, onError }: PreviewProps) {
     return () => cancelAnimationFrame(frame);
   }, [playing]);
 
-  return <canvas ref={canvasRef} aria-hidden="true" />;
+  return (
+    <>
+      <canvas ref={canvasRef} aria-hidden="true" />
+      <span className="render-label">{error ? "CSS FALLBACK" : "WEBGL 2 / GLSL"}</span>
+      {error && <span className="webgl-error">{error}</span>}
+    </>
+  );
 }
 
 export default function Home() {
-  const [config, setConfig] = useState(initial);
+  const [cards, setCards] = useState(() => makeCards(20260807));
   const [playing, setPlaying] = useState(true);
-  const [notice, setNotice] = useState("实时渲染中");
+  const [notice, setNotice] = useState("六款彩雾实时渲染中");
   const [fallbackCode, setFallbackCode] = useState("");
-  const [webglError, setWebglError] = useState("");
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -174,52 +188,41 @@ export default function Home() {
     }
   }, []);
 
-  const update = <Key extends keyof CardConfig>(
+  const updateShared = <Key extends "title" | "subtitle" | "radius" | "width" | "height">(
     key: Key,
     value: CardConfig[Key],
-  ) => setConfig((current) => ({ ...current, [key]: value }));
+  ) => setCards((current) => current.map((card) => ({ ...card, [key]: value })));
 
-  const randomize = () => {
+  const randomizeAll = () => {
     const values = new Uint32Array(1);
     crypto.getRandomValues(values);
-    const seed = values[0];
-    setConfig((current) => ({
-      ...current,
-      ...createPreset(seed),
-      seed,
-    }));
+    const masterSeed = values[0];
+    const visuals = createGallery(masterSeed);
+    setCards((current) =>
+      current.map((card, index) => ({ ...card, ...visuals[index] })),
+    );
     setFallbackCode("");
-    setNotice(`新种子 · ${seed}`);
+    setNotice(`六款已全部随机 · ${masterSeed}`);
   };
 
-  const copyHtml = async () => {
-    const html = buildEmbed(config);
+  const copyHtml = async (card: CardConfig) => {
+    const html = buildEmbed(card);
     try {
       await navigator.clipboard.writeText(html);
       setFallbackCode("");
-      setNotice("HTML 已复制，可以粘贴到其他网页");
+      setNotice(`${card.label} 的 HTML 已复制`);
     } catch {
       setFallbackCode(html);
       setNotice("剪贴板不可用，请在下方手动复制");
     }
   };
 
-  const cardStyle = {
-    "--card-a": config.colorA,
-    "--card-b": config.colorB,
-    "--card-radius": `${config.radius}px`,
-    "--card-width": `${config.width}px`,
-    "--card-height": `${config.height}px`,
-  } as CSSProperties;
-
   return (
     <main className="studio">
       <header className="studio-header">
-        <a className="brand" href="#top" aria-label="Luma Lab 首页">
-          LUMA LAB
-        </a>
+        <a className="brand" href="#top" aria-label="Luma Lab 首页">LUMA LAB</a>
         <div className="header-meta">
-          <span>WEBGL CARD STUDIO</span>
+          <span>WEBGL SMOKE STUDIES</span>
           <span className="live-dot" aria-hidden="true" />
           <span>{playing ? "LIVE" : "PAUSED"}</span>
         </div>
@@ -227,58 +230,74 @@ export default function Home() {
 
       <section className="intro" id="top">
         <div>
-          <span className="eyebrow">GENERATIVE COLOR STUDIES / 2026</span>
-          <h1>把颜色变成<br />可复制的动态。</h1>
+          <span className="eyebrow">SIX GENERATIVE SMOKE STUDIES / 2026</span>
+          <h1>六种彩雾，<br />同时比较。</h1>
         </div>
         <p>
-          编辑左侧文字，让右侧 WebGL 在粒子、波纹、雾与流动纹理之间随机生成。
-          完成后复制一段自包含 HTML，带到任何支持脚本的网页。
+          六张卡片固定使用不同的烟雾结构。点击一次，全部获得不同配色、种子与动态，
+          直接告诉我最接近你想法的编号。
         </p>
       </section>
 
-      <section className="workspace" aria-label="动态卡片生成器">
-        <article className="preview-card" style={cardStyle}>
-          <div className="card-copy">
-            <span className="card-label">{config.label}</span>
-            <h2>{config.title}</h2>
-            <p>{config.subtitle}</p>
-            <div className="card-index">
-              <span>SEED</span>
-              <b>{String(config.seed).padStart(10, "0").slice(-10)}</b>
-            </div>
-          </div>
-          <div className="card-visual">
-            <WebGLPreview
-              config={config}
-              playing={playing}
-              onError={setWebglError}
-            />
-            <span className="render-label">
-              {webglError ? "CSS FALLBACK" : "WEBGL 2 / GLSL"}
-            </span>
-            {webglError && <span className="webgl-error">{webglError}</span>}
-          </div>
-        </article>
-
+      <section className="workspace" aria-label="六款动态彩雾卡片">
         <div className="toolbar" aria-label="常用操作">
-          <button className="button button-primary" onClick={randomize}>
-            <span aria-hidden="true">✦</span> 随机生成
+          <button className="button button-primary" onClick={randomizeAll}>
+            <span aria-hidden="true">✦</span> 一键全部随机
           </button>
           <button className="button" onClick={() => setPlaying((value) => !value)}>
             {playing ? "暂停" : "播放"}
           </button>
-          <button className="button" onClick={copyHtml}>复制 HTML</button>
           <button
             className="button button-quiet"
             onClick={() => {
-              setConfig(initial);
+              setCards(makeCards(20260807));
               setFallbackCode("");
-              setNotice("已恢复默认卡片");
+              setNotice("已恢复默认六款卡片");
             }}
           >
             重置
           </button>
           <span className="toolbar-status" aria-live="polite">{notice}</span>
+        </div>
+
+        <div className="card-gallery">
+          {cards.map((card, index) => {
+            const cardStyle = {
+              "--card-a": card.colorA,
+              "--card-b": card.colorB,
+              "--card-radius": `${card.radius}px`,
+              "--card-width": `${card.width}px`,
+              "--card-height": `${card.height}px`,
+            } as CSSProperties;
+
+            return (
+              <section className="gallery-item" key={card.variant}>
+                <div className="gallery-meta">
+                  <div>
+                    <b>{String(index + 1).padStart(2, "0")}</b>
+                    <span>{variantNames[index]}</span>
+                  </div>
+                  <button className="copy-style" onClick={() => copyHtml(card)}>
+                    复制此样式
+                  </button>
+                </div>
+                <article className="preview-card" style={cardStyle}>
+                  <div className="card-copy">
+                    <span className="card-label">{card.label}</span>
+                    <h2>{card.title}</h2>
+                    <p>{card.subtitle}</p>
+                    <div className="card-index">
+                      <span>SEED</span>
+                      <b>{String(card.seed).padStart(10, "0").slice(-10)}</b>
+                    </div>
+                  </div>
+                  <div className="card-visual">
+                    <WebGLPreview config={card} playing={playing} />
+                  </div>
+                </article>
+              </section>
+            );
+          })}
         </div>
 
         {fallbackCode && (
@@ -295,74 +314,36 @@ export default function Home() {
 
         <details className="advanced">
           <summary>
-            <span>高级设置</span>
-            <small>文字 · 颜色 · 尺寸 · 动效</small>
+            <span>六张共享设置</span>
+            <small>文字 · 圆角 · 尺寸</small>
           </summary>
           <div className="control-grid">
             <label className="field field-wide">
               <span>标题</span>
               <input
-                value={config.title}
+                value={cards[0].title}
                 maxLength={42}
-                onChange={(event) => update("title", event.target.value)}
+                onChange={(event) => updateShared("title", event.target.value)}
               />
             </label>
             <label className="field field-wide">
               <span>正文</span>
               <input
-                value={config.subtitle}
+                value={cards[0].subtitle}
                 maxLength={80}
-                onChange={(event) => update("subtitle", event.target.value)}
+                onChange={(event) => updateShared("subtitle", event.target.value)}
               />
             </label>
-            <label className="field field-wide">
-              <span>辅助文字</span>
-              <input
-                value={config.label}
-                maxLength={48}
-                onChange={(event) => update("label", event.target.value)}
-              />
-            </label>
-            <label className="field color-field">
-              <span>颜色 A</span>
-              <input
-                type="color"
-                value={config.colorA}
-                onChange={(event) => update("colorA", event.target.value)}
-              />
-              <output>{config.colorA.toUpperCase()}</output>
-            </label>
-            <label className="field color-field">
-              <span>颜色 B</span>
-              <input
-                type="color"
-                value={config.colorB}
-                onChange={(event) => update("colorB", event.target.value)}
-              />
-              <output>{config.colorB.toUpperCase()}</output>
-            </label>
-            <RangeField label="速度" value={config.speed} min={0} max={2} step={0.05} onChange={(value) => update("speed", value)} />
-            <RangeField label="强度" value={config.intensity} min={0} max={1} step={0.01} onChange={(value) => update("intensity", value)} />
-            <RangeField label="圆角" value={config.radius} min={24} max={96} step={1} suffix="px" onChange={(value) => update("radius", value)} />
-            <RangeField label="宽度" value={config.width} min={480} max={1600} step={20} suffix="px" onChange={(value) => update("width", value)} />
-            <RangeField label="高度" value={config.height} min={220} max={900} step={10} suffix="px" onChange={(value) => update("height", value)} />
-            <label className="field">
-              <span>随机种子</span>
-              <input
-                type="number"
-                min={0}
-                max={4294967295}
-                value={config.seed}
-                onChange={(event) => update("seed", Number(event.target.value))}
-              />
-            </label>
+            <RangeField label="圆角" value={cards[0].radius} min={24} max={96} step={1} suffix="px" onChange={(value) => updateShared("radius", value)} />
+            <RangeField label="宽度" value={cards[0].width} min={480} max={1600} step={20} suffix="px" onChange={(value) => updateShared("width", value)} />
+            <RangeField label="高度" value={cards[0].height} min={220} max={900} step={10} suffix="px" onChange={(value) => updateShared("height", value)} />
           </div>
         </details>
       </section>
 
       <footer>
-        <span>ONE CARD · ONE SHADER · ZERO DEPENDENCIES</span>
-        <span>MADE WITH WEBGL 2</span>
+        <span>SIX CARDS · ONE SHADER · ZERO DEPENDENCIES</span>
+        <span>800 × 300 · COLOR AREA 65%</span>
       </footer>
     </main>
   );

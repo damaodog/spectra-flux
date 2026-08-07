@@ -40,8 +40,8 @@ test("buildEmbed escapes copy and has no network dependency", () => {
     speed: 0.8,
     intensity: 0.72,
     radius: 64,
-    width: 1200,
-    height: 420,
+    width: 800,
+    height: 300,
     variant: 1,
   };
 
@@ -51,6 +51,8 @@ test("buildEmbed escapes copy and has no network dependency", () => {
   assert.match(html, /getContext\("webgl2"/);
   assert.match(html, /2026/);
   assert.match(html, /uniform1i\(variant,1\)/);
+  assert.match(html, /aspect-ratio:800\/300/);
+  assert.match(html, /grid-template-columns:35% 65%/);
   assert.doesNotMatch(html, /https?:\/\//);
 });
 

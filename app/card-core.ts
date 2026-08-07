@@ -251,14 +251,13 @@ export function buildEmbed(config: CardConfig) {
 
   return `<div data-luma-card style="--luma-a:${colorA};--luma-b:${colorB};--luma-radius:${radius}px;--luma-width:${width}px;--luma-height:${height}px">
   <style>
-    [data-luma-card]{width:min(100%,var(--luma-width));min-height:var(--luma-height);display:grid;grid-template-columns:35% 65%;overflow:hidden;border:1px solid #dedfe3;border-radius:var(--luma-radius);background:#fff;color:#17181c;box-shadow:0 16px 50px rgba(22,24,30,.08);font-family:Arial,sans-serif}
-    [data-luma-card] .luma-card__copy{display:flex;flex-direction:column;justify-content:center;padding:clamp(28px,5vw,68px);box-sizing:border-box}
+    [data-luma-card]{width:min(100%,var(--luma-width));aspect-ratio:${width}/${height};display:grid;grid-template-columns:35% 65%;overflow:hidden;border:1px solid #dedfe3;border-radius:var(--luma-radius);background:#fff;color:#17181c;box-shadow:0 16px 50px rgba(22,24,30,.08);font-family:Arial,sans-serif}
+    [data-luma-card] .luma-card__copy{display:flex;flex-direction:column;justify-content:center;padding:clamp(18px,4vw,40px);box-sizing:border-box}
     [data-luma-card] .luma-card__label{font:600 10px/1.2 monospace;letter-spacing:.16em;color:#8b8d95}
     [data-luma-card] h2{margin:16px 0 10px;font-size:clamp(30px,4vw,64px);line-height:.9;letter-spacing:-.065em}
     [data-luma-card] p{margin:0;max-width:19em;font-size:clamp(12px,1.2vw,16px);line-height:1.45}
-    [data-luma-card] .luma-card__visual{position:relative;min-height:inherit;background:radial-gradient(circle at 80% 20%,var(--luma-a),transparent 48%),linear-gradient(135deg,#fff,var(--luma-b))}
+    [data-luma-card] .luma-card__visual{position:relative;min-height:0;background:radial-gradient(circle at 80% 20%,var(--luma-a),transparent 48%),linear-gradient(135deg,#fff,var(--luma-b))}
     [data-luma-card] canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-    @media(max-width:640px){[data-luma-card]{grid-template-columns:1fr;min-height:0}[data-luma-card] .luma-card__copy{min-height:190px}[data-luma-card] .luma-card__visual{min-height:260px}}
   </style>
   <div class="luma-card__copy">
     <span class="luma-card__label">${escapeHtml(config.label)}</span>
