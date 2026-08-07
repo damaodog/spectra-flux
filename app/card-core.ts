@@ -65,11 +65,11 @@ void main(){
   vec2 warped = p + vec2(fogA - 0.5, fogB - 0.5) * 0.34;
   vec2 centerA = vec2(-0.32, 0.16) + smokeDrift * vec2(0.18, 0.10);
   vec2 centerB = vec2(0.08, -0.18) + smokeDrift.yx * vec2(-0.13, 0.16);
-  vec2 centerC = vec2(0.45, 0.12) + vec2(
+  vec2 centerC = vec2(0.78, 0.12) + vec2(
     sin(time * 0.29 - phase),
     cos(time * 0.37 + phase)
   ) * 0.14;
-  vec2 centerD = vec2(0.28, -0.38) + vec2(
+  vec2 centerD = vec2(0.62, -0.38) + vec2(
     cos(time * 0.31 + phase),
     sin(time * 0.27)
   ) * 0.12;
@@ -84,22 +84,25 @@ void main(){
     length((warped - centerB) * vec2(0.82, 1.0))
   );
   float cloudC = 1.0 - smoothstep(
-    0.08,
-    0.50,
-    length((warped - centerC) * vec2(0.76, 1.0))
+    0.10,
+    0.72,
+    length((warped - centerC) * vec2(0.56, 0.94))
   );
   float cloudD = 1.0 - smoothstep(
-    0.08,
-    0.46,
-    length((warped - centerD) * vec2(0.86, 1.0))
+    0.10,
+    0.68,
+    length((warped - centerD) * vec2(0.66, 0.94))
   );
+  float cloudBody = max(max(cloudA, cloudB), max(cloudC, cloudD));
   float smokeDensity = clamp(
-    (cloudA + cloudB + cloudC + cloudD) *
-      (0.42 + fogA * 0.38 + fogB * 0.20),
+    cloudBody * (0.54 + fogA * 0.32 + fogB * 0.18),
     0.0,
     1.0
   );
-  float colorMix = clamp(0.18 + uv.y * 0.28 + fogB * 0.62, 0.0, 1.0);
+  float cloudTotal = cloudA + cloudB + cloudC + cloudD + 0.001;
+  float cloudColor = (cloudA * 0.08 + cloudB * 0.34 +
+    cloudC * 0.88 + cloudD * 0.62) / cloudTotal;
+  float colorMix = clamp(cloudColor * 0.78 + uv.y * 0.10 + fogB * 0.18, 0.0, 1.0);
   vec3 smokeColor = mix(colorA, colorB, colorMix);
   float leftFade = smoothstep(0.03, 0.46, uv.x + fogA * 0.08);
   float opacity = smoothstep(0.04, 0.84, smokeDensity) *
