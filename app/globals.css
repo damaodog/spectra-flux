@@ -162,6 +162,19 @@ footer {
   background: #fff;
 }
 
+.card-meta {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  overflow: hidden;
+  color: #92949b;
+  font: 650 6px/1 ui-monospace, "SFMono-Regular", Consolas, monospace;
+  letter-spacing: .06em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .card-copy h2 {
   margin: 0 0 5px;
   overflow-wrap: anywhere;

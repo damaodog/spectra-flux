@@ -33,6 +33,16 @@ test("server-renders the WebGL card generator", async () => {
   assert.equal((html.match(/class="preview-card"/g) || []).length, 6);
   assert.equal((html.match(/class="card-copy"/g) || []).length, 6);
   assert.equal((html.match(/<canvas/g) || []).length, 6);
+  assert.equal((html.match(/class="card-meta"/g) || []).length, 6);
+  const cardMeta = [
+    "01 · 柔雾扩散",
+    "02 · 彩墨叠层",
+    "03 · 横向薄纱",
+    "04 · 墨滴晕染",
+    "05 · 斜向漂移",
+    "06 · 深景云雾",
+  ];
+  cardMeta.forEach((label) => assert.match(html, new RegExp(label)));
   assert.equal((html.match(/--card-width:400px/g) || []).length, 6);
   assert.equal((html.match(/--card-height:100px/g) || []).length, 6);
   assert.doesNotMatch(

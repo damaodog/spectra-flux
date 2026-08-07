@@ -224,6 +224,9 @@ function AtlasGallery({ configs, playing }: GalleryProps) {
             key={config.variant}
           >
             <div className="card-copy">
+              <span className="card-meta">
+                {`${String(index + 1).padStart(2, "0")} · ${variantNames[index]}`}
+              </span>
               <h2>{config.title}</h2>
               <p>{config.subtitle}</p>
             </div>
