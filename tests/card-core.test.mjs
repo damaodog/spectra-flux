@@ -15,9 +15,9 @@ test("createPreset is deterministic for a seed", () => {
   assert.notDeepEqual(createPreset(2026), createPreset(2027));
 });
 
-test("the default card is 800 by 300", () => {
-  assert.equal(DEFAULT_CARD_WIDTH, 800);
-  assert.equal(DEFAULT_CARD_HEIGHT, 300);
+test("the default preview card is 400 by 100", () => {
+  assert.equal(DEFAULT_CARD_WIDTH, 400);
+  assert.equal(DEFAULT_CARD_HEIGHT, 100);
 });
 
 test("createGallery returns six unique fixed variants", () => {

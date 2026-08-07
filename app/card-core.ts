@@ -13,8 +13,8 @@ export type CardConfig = {
   variant: number;
 };
 
-export const DEFAULT_CARD_WIDTH = 800;
-export const DEFAULT_CARD_HEIGHT = 300;
+export const DEFAULT_CARD_WIDTH = 400;
+export const DEFAULT_CARD_HEIGHT = 100;
 export const SMOKE_VARIANT_COUNT = 6;
 
 export const VERTEX_SHADER = `#version 300 es
