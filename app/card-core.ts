@@ -34,6 +34,8 @@ uniform float time;
 uniform float seed;
 uniform float intensity;
 uniform int variant;
+uniform int kernel;
+uniform vec4 studyParams;
 uniform vec3 colorA;
 uniform vec3 colorB;
 out vec4 outColor;
@@ -70,6 +72,101 @@ vec2 vortexWarp(vec2 point, vec2 center, float spin, float falloff){
   return vec2(-delta.y, delta.x) * spin * influence;
 }
 
+float band(float value, float width){
+  return 1.0 - smoothstep(width, width + 0.34, abs(value));
+}
+
+vec4 veilField(vec2 p, float t, vec4 q){
+  float n1 = fbm(p * vec2(0.72, 3.2 + q.x) + vec2(t * 0.10, -t * 0.05));
+  float n2 = fbm(p * vec2(0.94, 4.4 + q.z) + vec2(-t * 0.08, t * 0.04) + 7.0);
+  float top = p.y - 0.24 - (n1 - 0.5) * (0.28 + q.y * 0.18);
+  float bottom = p.y + 0.22 - (n2 - 0.5) * (0.30 + abs(q.y) * 0.16);
+  return clamp(vec4(band(top, 0.20), band(bottom, 0.22), band(top + bottom, 0.18), band(top - bottom, 0.28)), 0.0, 1.0);
+}
+
+vec4 filmField(vec2 p, float t, vec4 q){
+  float a = fbm(p * (1.4 + q.x * 0.5) + vec2(t * 0.07, -t * 0.04));
+  float b = fbm(p.yx * (2.0 + q.y * 0.4) + vec2(-t * 0.05, t * 0.06) + 9.0);
+  float edge = 1.0 - smoothstep(0.08, 0.42, abs(a - b));
+  return vec4(a, b, edge, smoothstep(0.32, 0.82, a + b - 0.38));
+}
+
+vec4 lensField(vec2 p, float t, vec4 q){
+  vec2 c1 = vec2(sin(t * 0.11), cos(t * 0.09)) * vec2(0.46, 0.20);
+  vec2 c2 = vec2(cos(t * 0.08 + 2.0), sin(t * 0.12)) * vec2(0.62, 0.24);
+  float d1 = length((p - c1) * vec2(0.66, 1.0));
+  float d2 = length((p - c2) * vec2(0.72, 1.0));
+  return vec4(1.0-smoothstep(0.28, 1.18, d1), 1.0-smoothstep(0.24, 1.04, d2), band(d1-q.x*0.32, 0.08), band(d2-q.z*0.28, 0.09));
+}
+
+vec4 glowField(vec2 p, float t, vec4 q){
+  float curtain = sin(p.x * (1.2 + q.x) - t * 0.13) * 0.18;
+  float haze = fbm(p * vec2(0.78, 2.6) + vec2(t * 0.05, 4.0));
+  float core = band(p.y - curtain - (haze - 0.5) * 0.34, 0.18);
+  float halo = band(p.y + curtain * 0.7 + (haze - 0.5) * 0.22, 0.42);
+  return vec4(core, halo, core * (0.5 + 0.5 * sin(p.x * 2.2 + t)), haze * halo);
+}
+
+vec4 waveField(vec2 p, float t, vec4 q){
+  float w1 = sin(p.x * (1.8 + q.x) - t * 0.16) + sin(p.y * (4.0 + q.y) + t * 0.11);
+  float w2 = sin(p.x * (2.4 + q.z) + t * 0.10) - sin(p.y * 3.2 - t * 0.14);
+  return vec4(0.5+0.5*sin(w1), 0.5+0.5*sin(w2), 1.0-smoothstep(0.10,0.72,abs(w1-w2)), 0.5+0.5*sin(w1+w2));
+}
+
+vec4 gelField(vec2 p, float t, vec4 q){
+  vec2 c1 = vec2(-0.34 + sin(t*0.10)*0.28, sin(t*0.08)*0.16);
+  vec2 c2 = vec2(0.42 + cos(t*0.09)*0.24, cos(t*0.07)*0.18);
+  float g1 = 1.0-smoothstep(0.34,0.92,length((p-c1)*vec2(0.72,1.0)));
+  float g2 = 1.0-smoothstep(0.30,0.86,length((p-c2)*vec2(0.72,1.0)));
+  return vec4(g1,g2,min(g1,g2),smoothstep(0.16,0.72,g1+g2));
+}
+
+vec4 magnetField(vec2 p, float t, vec4 q){
+  vec2 c = vec2(sin(t*0.12)*0.42, cos(t*0.09)*0.16);
+  vec2 d = p-c;
+  float r = length(d*vec2(0.62,1.0));
+  float ridges = 0.5+0.5*sin(r*(9.0+q.x*3.0)-t*0.38+atan(d.y,d.x)*2.0);
+  float mass = 1.0-smoothstep(0.42,1.48,r);
+  return vec4(mass,ridges*mass,(1.0-ridges)*mass,band(r-q.z*0.42,0.08));
+}
+
+vec4 ringField(vec2 p, float t, vec4 q){
+  vec2 left = p-vec2(-0.34+sin(t*0.10)*0.22,0.08);
+  vec2 right = p-vec2(0.40-cos(t*0.09)*0.24,-0.10);
+  float r1 = length(left*vec2(0.66,1.0));
+  float r2 = length(right*vec2(0.66,1.0));
+  return vec4(band(r1-q.x*0.34,0.09),band(r2-q.y*0.32,0.09),1.0-smoothstep(0.08,0.54,abs(r1-r2)),fbm(p*2.2+vec2(t*0.08)));
+}
+
+vec4 tensionField(vec2 p, float t, vec4 q){
+  float seam = p.y-sin(p.x*(1.2+q.x)+t*0.12)*0.22-(fbm(p*1.6+vec2(t*0.04))-0.5)*0.26;
+  float gap = smoothstep(0.04,0.20,abs(seam));
+  float skin = 1.0-smoothstep(0.18,0.58,abs(seam));
+  return vec4(skin*(seam>0.0?1.0:0.0),skin*(seam<0.0?1.0:0.0),1.0-gap,band(seam,0.08));
+}
+
+vec4 interferenceField(vec2 p, float t, vec4 q){
+  float a = length((p-vec2(-0.46,0.0))*vec2(0.68,1.0));
+  float b = length((p-vec2(0.52,0.04))*vec2(0.68,1.0));
+  float phase = sin((a-b)*(8.0+q.x*3.0)-t*0.24);
+  float tide = sin((a+b)*(3.0+q.z)-t*0.10);
+  return vec4(0.5+0.5*phase,0.5-0.5*phase,0.5+0.5*tide,1.0-smoothstep(0.12,0.78,abs(phase-tide)));
+}
+
+vec4 forceField(vec2 p, float t, vec4 q){
+  float left = 1.0-smoothstep(0.24,1.18,length((p-vec2(-0.42+sin(t*0.08)*0.20,0.0))*vec2(0.62,1.0)));
+  float right = 1.0-smoothstep(0.24,1.18,length((p-vec2(0.46-cos(t*0.07)*0.18,0.0))*vec2(0.62,1.0)));
+  float flow = fbm(p*vec2(1.0+q.x*0.3,2.8)+vec2(t*0.06,-t*0.04));
+  return vec4(left,right,min(left,right)*(0.5+flow),max(left,right)*(1.0-flow*0.34));
+}
+
+vec4 filamentField(vec2 p, float t, vec4 q){
+  float n = fbm(p*vec2(0.84,3.8)+vec2(t*0.16,-t*0.08));
+  float f1 = 0.5+0.5*sin((p.y+(n-0.5)*0.54)*(8.0+q.x*4.0)+p.x*1.6-t*0.42);
+  float f2 = 0.5+0.5*sin((p.y-(n-0.5)*0.46)*(10.0+q.y*3.0)-p.x*1.2+t*0.34);
+  return vec4(f1,f2,smoothstep(0.56,0.94,f1),smoothstep(0.60,0.96,f2));
+}
+
 void main(){
   vec2 localFragCoord = gl_FragCoord.xy - viewportOrigin;
   vec2 uv = localFragCoord / resolution.xy;
@@ -86,14 +183,15 @@ void main(){
     cos(travelTime * 0.83 - phase)
   );
   vec2 macroDrift = travelDrift * 1.8;
-  bool collisionFamily = variant < 2 || variant == 6;
-  bool weaveFamily = variant >= 2 && variant < 4;
-  bool vortexFamily = variant >= 4 && variant < 6;
-  bool diffusionVariant = variant == 7;
-  bool fusionVariant = variant == 8;
-  bool breathVariant = variant == 9;
-  bool fastVariant = variant == 10;
-  bool slowVariant = variant == 11;
+  bool legacy = kernel == 0;
+  bool collisionFamily = legacy && (variant < 2 || variant == 6);
+  bool weaveFamily = legacy && variant >= 2 && variant < 4;
+  bool vortexFamily = legacy && variant >= 4 && variant < 6;
+  bool diffusionVariant = legacy && variant == 7;
+  bool fusionVariant = legacy && variant == 8;
+  bool breathVariant = legacy && variant == 9;
+  bool fastVariant = legacy && variant == 10;
+  bool slowVariant = legacy && variant == 11;
   float fogA = fbm(p * 2.0 + flowDrift);
   float fogB = fbm(p * 3.2 + vec2(-flowDrift.y, flowDrift.x) * 0.82 + vec2(7.3));
   float fogC = 0.5;
@@ -101,6 +199,19 @@ void main(){
     fogC = fbm(p * 4.1 + vec2(-flowDrift.x * 0.68, flowDrift.y * 0.92) + vec2(13.7, 4.9));
   }
   vec2 warped = p + vec2(fogA - 0.5, fogB - 0.5) * 0.34;
+  vec4 materialFields = vec4(0.0);
+  if(kernel == 1) materialFields = veilField(p, flowTime, studyParams);
+  if(kernel == 2) materialFields = filmField(p, flowTime, studyParams);
+  if(kernel == 3) materialFields = lensField(p, flowTime, studyParams);
+  if(kernel == 4) materialFields = glowField(p, flowTime, studyParams);
+  if(kernel == 5) materialFields = waveField(p, flowTime, studyParams);
+  if(kernel == 6) materialFields = gelField(p, flowTime, studyParams);
+  if(kernel == 7) materialFields = magnetField(p, flowTime, studyParams);
+  if(kernel == 8) materialFields = ringField(p, flowTime, studyParams);
+  if(kernel == 9) materialFields = tensionField(p, flowTime, studyParams);
+  if(kernel == 10) materialFields = interferenceField(p, flowTime, studyParams);
+  if(kernel == 11) materialFields = forceField(p, flowTime, studyParams);
+  if(kernel == 12) materialFields = filamentField(p, flowTime, studyParams);
 
   vec2 shape = warped;
   vec2 centerA = vec2(-0.32, 0.16) + macroDrift * vec2(0.18, 0.10);
@@ -114,7 +225,7 @@ void main(){
   vec4 outer = vec4(0.62, 0.56, 0.72, 0.68);
   float breathPulse = 1.0;
 
-  if(variant == 1){
+  if(kernel == 0 && variant == 1){
     centerA = vec2(-0.08, 0.16) + macroDrift * 0.12;
     centerB = vec2(0.18, -0.10) - macroDrift.yx * 0.10;
     centerC = vec2(0.52, 0.18) + macroDrift.yx * 0.11;
@@ -125,7 +236,7 @@ void main(){
     scaleD = vec2(0.58, 0.88);
     outer = vec4(0.76, 0.72, 0.78, 0.74);
   }
-  if(variant == 2){
+  if(kernel == 0 && variant == 2){
     shape = vec2(
       warped.x + sin(warped.y * 3.8 + flowTime * 0.24 + phase) * 0.16,
       warped.y
@@ -137,7 +248,7 @@ void main(){
     scaleA = scaleB = scaleC = scaleD = vec2(0.46, 1.72);
     outer = vec4(0.58, 0.56, 0.60, 0.58);
   }
-  if(variant == 3){
+  if(kernel == 0 && variant == 3){
     shape += normalize(shape + vec2(0.001)) * (fogB - 0.5) * 0.30;
     centerA = vec2(-0.02, 0.08) + macroDrift * 0.10;
     centerB = vec2(0.28, -0.14) - macroDrift.yx * 0.10;
@@ -149,7 +260,7 @@ void main(){
     scaleD = vec2(0.72, 0.76);
     outer = vec4(0.70, 0.58, 0.66, 0.54);
   }
-  if(variant == 4){
+  if(kernel == 0 && variant == 4){
     shape = mat2(0.94, -0.34, 0.34, 0.94) * warped;
     centerA = vec2(-0.20, 0.34) + macroDrift * 0.10;
     centerB = vec2(0.12, 0.08) - macroDrift.yx * 0.11;
@@ -158,7 +269,7 @@ void main(){
     scaleA = scaleB = scaleC = scaleD = vec2(0.58, 1.10);
     outer = vec4(0.66, 0.62, 0.70, 0.66);
   }
-  if(variant == 5){
+  if(kernel == 0 && variant == 5){
     shape = warped + vec2((fogA - 0.5) * 0.42, (fogB - 0.5) * 0.18);
     centerA = vec2(-0.08, 0.06) + macroDrift * 0.06;
     centerB = vec2(0.62, -0.02) - macroDrift.yx * 0.07;
@@ -170,7 +281,7 @@ void main(){
     scaleD = vec2(0.86, 1.12);
     outer = vec4(0.92, 0.88, 0.52, 0.48);
   }
-  if(variant == 6){
+  if(kernel == 0 && variant == 6){
     float impactCycle = 0.5 + 0.5 * sin(flowTime * 0.22 + phase);
     float approach = mix(0.62, 0.10, impactCycle);
     shape = warped;
@@ -183,7 +294,7 @@ void main(){
     scaleA = scaleB = scaleC = scaleD = vec2(0.46, 0.84);
     outer = vec4(0.74, 0.74, 0.66, 0.66);
   }
-  if(variant == 7){
+  if(kernel == 0 && variant == 7){
     float diffusionWave = 0.5 + 0.5 * sin(flowTime * 0.09 + phase);
     float diffusionScale = mix(1.16, 0.72, diffusionWave);
     shape = warped * diffusionScale;
@@ -198,7 +309,7 @@ void main(){
     scaleD = vec2(0.80, 0.92);
     outer = mix(vec4(0.54, 0.50, 0.46, 0.42), vec4(0.92, 0.84, 0.76, 0.68), diffusionWave);
   }
-  if(variant == 8){
+  if(kernel == 0 && variant == 8){
     float fusionShift = sin(flowTime * 0.13 + phase) * 0.16;
     shape = warped + vec2(fogC - fogB, fogA - fogC) * 0.46;
     centerA = vec2(-0.04 + fusionShift, 0.12);
@@ -208,7 +319,7 @@ void main(){
     scaleA = scaleB = scaleC = scaleD = vec2(0.58, 0.82);
     outer = vec4(0.84, 0.84, 0.78, 0.76);
   }
-  if(variant == 9){
+  if(kernel == 0 && variant == 9){
     breathPulse = 0.5 + 0.5 * sin(flowTime * 0.085 + phase);
     float breathScale = mix(0.82, 1.14, breathPulse);
     shape = warped * breathScale;
@@ -219,7 +330,7 @@ void main(){
     scaleA = scaleB = scaleC = scaleD = vec2(0.54, 0.82);
     outer = mix(vec4(0.86, 0.82, 0.78, 0.72), vec4(0.62, 0.60, 0.56, 0.52), breathPulse);
   }
-  if(variant == 10){
+  if(kernel == 0 && variant == 10){
     float fastPhase = flowTime * 0.72 + phase;
     shape = vec2(
       warped.x + sin(warped.y * 8.0 - fastPhase) * 0.22 + (fogC - 0.5) * 0.28,
@@ -232,7 +343,7 @@ void main(){
     scaleA = scaleB = scaleC = scaleD = vec2(0.34, 1.72);
     outer = vec4(0.62, 0.60, 0.58, 0.56);
   }
-  if(variant == 11){
+  if(kernel == 0 && variant == 11){
     float slowLift = sin(flowTime * 0.035 + phase) * 0.06;
     shape = warped + vec2((fogA - 0.5) * 0.18, (fogB - 0.5) * 0.12);
     centerA = vec2(-0.08, 0.18 + slowLift);
@@ -255,7 +366,7 @@ void main(){
   if(vortexFamily){
     vec2 primaryCenter = variant == 4 ? vec2(0.20, 0.02) : vec2(0.44, 0.08);
     vec2 vortexFlow = vortexWarp(shape, primaryCenter, 0.82 + fogA * 0.34, 0.72);
-    if(variant == 5){
+    if(kernel == 0 && variant == 5){
       vortexFlow += vortexWarp(shape, vec2(0.92, -0.20), -0.72 - fogB * 0.28, 1.05);
       vortexFlow += vortexWarp(shape, vec2(-0.18, 0.28), 0.44, 1.30);
     }
@@ -279,6 +390,14 @@ void main(){
   float layerAlphaB = smoothstep(0.02, 0.82, cloudB) * leftFade * (0.72 + fogB * 0.28);
   float layerAlphaC = smoothstep(0.02, 0.82, cloudC) * leftFade * (0.76 + detailC * 0.24);
   float layerAlphaD = smoothstep(0.02, 0.82, cloudD) * leftFade * (0.74 + mix(fogA, detailC, 0.5) * 0.26);
+  if(kernel > 0){
+    float materialFade = smoothstep(0.0, 0.22, uv.x);
+    vec4 tunedFields = pow(clamp(materialFields, 0.0, 1.0), vec4(0.82));
+    layerAlphaA = tunedFields.x * materialFade;
+    layerAlphaB = tunedFields.y * materialFade;
+    layerAlphaC = tunedFields.z * materialFade;
+    layerAlphaD = tunedFields.w * materialFade;
+  }
   float breathGain = breathVariant ? mix(0.70, 1.0, breathPulse) : 1.0;
   layerAlphaA *= breathGain;
   layerAlphaB *= breathGain;
@@ -292,6 +411,18 @@ void main(){
   color = mix(color, colorB, layerAlphaB * strength);
   color = mix(color, mix(colorA, colorB, 0.30), layerAlphaC * strength * 0.88);
   color = mix(color, mix(colorA, colorB, 0.72), layerAlphaD * strength * 0.84);
+
+  if(kernel >= 2 && kernel <= 6){
+    float opticalEdge = smoothstep(0.42, 0.94, materialFields.z);
+    vec3 spectral = mix(colorA, colorB, 0.5 + 0.5 * sin((p.x + p.y) * 1.8 + flowTime * 0.12));
+    color = mix(color, spectral, opticalEdge * 0.18);
+    color = mix(color, vec3(1.0), materialFields.w * opticalEdge * 0.13);
+  }
+  if(kernel >= 7){
+    float forceOverlap = min(materialFields.x, materialFields.y);
+    vec3 denseInk = clamp(mix(colorA, colorB, materialFields.y) * 0.82, 0.0, 1.0);
+    color = mix(color, denseInk, forceOverlap * (0.16 + intensity * 0.16));
+  }
 
   float fieldA = max(layerAlphaA, layerAlphaC);
   float fieldB = max(layerAlphaB, layerAlphaD);
@@ -426,6 +557,8 @@ export function buildEmbed(config: CardConfig) {
   const width = clamp(config.width, 480, 1600);
   const height = clamp(config.height, 220, 900);
   const variantValue = Math.trunc(clamp(config.variant, 0, SMOKE_VARIANT_COUNT - 1));
+  const kernelValue = Math.trunc(clamp(config.kernel, 0, 12));
+  const params = config.params.map((value) => clamp(value, -2, 2));
   const vertex = JSON.stringify(VERTEX_SHADER);
   const fragment = JSON.stringify(FRAGMENT_SHADER);
 
@@ -462,10 +595,10 @@ export function buildEmbed(config: CardConfig) {
     gl.useProgram(program);
     const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
     const position=gl.getAttribLocation(program,"position");gl.enableVertexAttribArray(position);gl.vertexAttribPointer(position,2,gl.FLOAT,false,0,0);
-    const resolution=gl.getUniformLocation(program,"resolution"),time=gl.getUniformLocation(program,"time"),seed=gl.getUniformLocation(program,"seed"),intensity=gl.getUniformLocation(program,"intensity"),variant=gl.getUniformLocation(program,"variant"),a=gl.getUniformLocation(program,"colorA"),b=gl.getUniformLocation(program,"colorB");
+    const resolution=gl.getUniformLocation(program,"resolution"),time=gl.getUniformLocation(program,"time"),seed=gl.getUniformLocation(program,"seed"),intensity=gl.getUniformLocation(program,"intensity"),variant=gl.getUniformLocation(program,"variant"),kernel=gl.getUniformLocation(program,"kernel"),studyParams=gl.getUniformLocation(program,"studyParams"),a=gl.getUniformLocation(program,"colorA"),b=gl.getUniformLocation(program,"colorB");
     const resize=()=>{const rect=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.max(1,Math.round(rect.width*dpr));canvas.height=Math.max(1,Math.round(rect.height*dpr));gl.viewport(0,0,canvas.width,canvas.height)};
     new ResizeObserver(resize).observe(canvas);resize();
-    const draw=(now=0)=>{gl.uniform2f(resolution,canvas.width,canvas.height);gl.uniform1f(time,now*.001*${speed}*${SMOKE_TIME_SCALE});gl.uniform1f(seed,${seed}.0);gl.uniform1f(intensity,${intensity});gl.uniform1i(variant,${variantValue});gl.uniform3f(a,${aR},${aG},${aB});gl.uniform3f(b,${bR},${bG},${bB});gl.drawArrays(gl.TRIANGLE_STRIP,0,4)};
+    const draw=(now=0)=>{gl.uniform2f(resolution,canvas.width,canvas.height);gl.uniform1f(time,now*.001*${speed}*${SMOKE_TIME_SCALE});gl.uniform1f(seed,${seed}.0);gl.uniform1f(intensity,${intensity});gl.uniform1i(variant,${variantValue});gl.uniform1i(kernel,${kernelValue});gl.uniform4f(studyParams,${params[0]},${params[1]},${params[2]},${params[3]});gl.uniform3f(a,${aR},${aG},${aB});gl.uniform3f(b,${bR},${bG},${bB});gl.drawArrays(gl.TRIANGLE_STRIP,0,4)};
     let frame=0;const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
     const loop=(now)=>{if(!root.isConnected)return;draw(now);frame=requestAnimationFrame(loop)};
     const start=()=>{if(!frame&&!document.hidden&&!reduced)frame=requestAnimationFrame(loop)};

@@ -121,6 +121,8 @@ function AtlasGallery({ configs, playing }: GalleryProps) {
         seed: gl.getUniformLocation(program, "seed"),
         intensity: gl.getUniformLocation(program, "intensity"),
         variant: gl.getUniformLocation(program, "variant"),
+        kernel: gl.getUniformLocation(program, "kernel"),
+        studyParams: gl.getUniformLocation(program, "studyParams"),
         colorA: gl.getUniformLocation(program, "colorA"),
         colorB: gl.getUniformLocation(program, "colorB"),
       };
@@ -147,6 +149,8 @@ function AtlasGallery({ configs, playing }: GalleryProps) {
           gl.uniform1f(uniforms.seed, toShaderSeed(config.seed));
           gl.uniform1f(uniforms.intensity, config.intensity);
           gl.uniform1i(uniforms.variant, config.variant);
+          gl.uniform1i(uniforms.kernel, config.kernel);
+          gl.uniform4fv(uniforms.studyParams, config.params);
           gl.uniform3fv(uniforms.colorA, hexToRgb(config.colorA));
           gl.uniform3fv(uniforms.colorB, hexToRgb(config.colorB));
           gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);

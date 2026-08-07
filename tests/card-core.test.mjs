@@ -96,6 +96,8 @@ test("smoke animation uses the shared eight-times scale", () => {
     width: 400,
     height: 100,
     variant: 0,
+    kernel: 0,
+    params: [0, 0, 0, 0],
   });
 
   assert.match(html, /now\*\.001\*0\.8\*8/);
@@ -115,6 +117,8 @@ test("buildEmbed escapes copy and has no network dependency", () => {
     width: 800,
     height: 300,
     variant: 1,
+    kernel: 1,
+    params: [0.92, 0.48, 0.22, 0.74],
   };
 
   const html = buildEmbed(config);
@@ -128,13 +132,60 @@ test("buildEmbed escapes copy and has no network dependency", () => {
   assert.doesNotMatch(html, /https?:\/\//);
 });
 
+test("the shader exposes bounded material kernels", () => {
+  assert.match(FRAGMENT_SHADER, /uniform int kernel;/);
+  assert.match(FRAGMENT_SHADER, /uniform vec4 studyParams;/);
+  [
+    "veilField",
+    "filmField",
+    "lensField",
+    "glowField",
+    "waveField",
+    "gelField",
+    "magnetField",
+    "ringField",
+    "tensionField",
+    "interferenceField",
+    "forceField",
+    "filamentField",
+  ].forEach((name) => {
+    assert.match(FRAGMENT_SHADER, new RegExp(`vec4 ${name}\\(`));
+  });
+  assert.doesNotMatch(
+    FRAGMENT_SHADER,
+    /sampler2D|framebuffer|particles|glitch|scanline/i,
+  );
+});
+
+test("embed transfers kernel tuning to WebGL", () => {
+  const html = buildEmbed({
+    title: "SPECTRA",
+    subtitle: "COLOR AS A LIVING SYSTEM.",
+    label: "STYLE 13",
+    colorA: "#64e0c1",
+    colorB: "#2778ff",
+    seed: 2026,
+    speed: 0.64,
+    intensity: 0.74,
+    radius: 54,
+    width: 400,
+    height: 100,
+    variant: 12,
+    kernel: 2,
+    params: [1.18, 0.74, 0.34, 0.62],
+  });
+
+  assert.match(html, /uniform1i\(kernel,2\)/);
+  assert.match(html, /uniform4f\(studyParams,1\.18,0\.74,0\.34,0\.62\)/);
+});
+
 test("the fragment shader renders smoke without mixed effects", () => {
   assert.match(FRAGMENT_SHADER, /float smokeDensity\s*=/);
   assert.match(FRAGMENT_SHADER, /vec2 flowDrift\s*=/);
   assert.doesNotMatch(FRAGMENT_SHADER, /ripple|particles|veins|grain/i);
 });
 
-test("the shader keeps fast flow and limits the third field to weave variants", () => {
+test("the shader keeps fast flow and isolates legacy structures", () => {
   assert.match(FRAGMENT_SHADER, /float flowTime\s*=\s*time;/);
   assert.match(FRAGMENT_SHADER, /float travelTime\s*=\s*time \* 0\.025;/);
   assert.match(FRAGMENT_SHADER, /vec2 flowDrift\s*=/);
@@ -143,30 +194,34 @@ test("the shader keeps fast flow and limits the third field to weave variants", 
   assert.match(FRAGMENT_SHADER, /float horizontalScale\s*=\s*1\.0 \/ 1\.4;/);
   assert.match(
     FRAGMENT_SHADER,
-    /bool collisionFamily\s*=\s*variant < 2 \|\| variant == 6;/,
+    /bool collisionFamily\s*=\s*legacy && \(variant < 2 \|\| variant == 6\);/,
   );
-  assert.match(FRAGMENT_SHADER, /bool weaveFamily\s*=\s*variant >= 2 && variant < 4;/);
-  assert.match(FRAGMENT_SHADER, /bool vortexFamily\s*=\s*variant >= 4 && variant < 6;/);
+  assert.match(
+    FRAGMENT_SHADER,
+    /bool weaveFamily\s*=\s*legacy && variant >= 2 && variant < 4;/,
+  );
+  assert.match(
+    FRAGMENT_SHADER,
+    /bool vortexFamily\s*=\s*legacy && variant >= 4 && variant < 6;/,
+  );
   assert.match(
     FRAGMENT_SHADER,
     /if\(weaveFamily \|\| fusionVariant \|\| fastVariant\)\{\s*fogC = fbm\(/,
   );
-  assert.equal((FRAGMENT_SHADER.match(/= fbm\(/g) || []).length, 3);
 });
 
-test("the shader exposes six new motion identities", () => {
+test("the selected legacy studies keep their original shader branches", () => {
   const identities = [
-    [6, "impactCycle"],
-    [7, "diffusionWave"],
-    [8, "fusionShift"],
-    [9, "breathPulse"],
+    [2, "warped.y"],
+    [4, "mat2"],
     [10, "fastPhase"],
-    [11, "slowLift"],
   ];
 
   identities.forEach(([variant, control]) => {
-    assert.match(FRAGMENT_SHADER, new RegExp(`if\\(variant == ${variant}\\)`));
-    assert.match(FRAGMENT_SHADER, new RegExp(`float ${control}`));
+    assert.match(
+      FRAGMENT_SHADER,
+      new RegExp(`if\\(kernel == 0 && variant == ${variant}\\)[\\s\\S]*?${control}`),
+    );
   });
   assert.doesNotMatch(FRAGMENT_SHADER, /sampler2D|framebuffer/);
 });
