@@ -8,6 +8,7 @@ import {
   DEFAULT_CARD_WIDTH,
   FRAGMENT_SHADER,
   SMOKE_VARIANT_COUNT,
+  toShaderSeed,
 } from "../app/card-core.ts";
 
 test("createPreset is deterministic for a seed", () => {
@@ -27,6 +28,12 @@ test("createGallery returns six unique fixed variants", () => {
   assert.equal(new Set(gallery.map((card) => card.seed)).size, 6);
   assert.deepEqual(gallery, createGallery(2026));
   assert.notDeepEqual(gallery, createGallery(2027));
+});
+
+test("shader seeds stay inside the precise 16-bit float range", () => {
+  assert.equal(toShaderSeed(2674696568), 41336);
+  assert.equal(toShaderSeed(4294967295), 65535);
+  assert.equal(toShaderSeed(-1), 0);
 });
 
 test("buildEmbed escapes copy and has no network dependency", () => {

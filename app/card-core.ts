@@ -209,6 +209,9 @@ export function createGallery(seed: number) {
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
 
+export const toShaderSeed = (seed: number) =>
+  Math.trunc(clamp(seed, 0, 4294967295)) % 65536;
+
 const safeColor = (value: string, fallback: string) =>
   /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
 
@@ -239,7 +242,7 @@ export function buildEmbed(config: CardConfig) {
   const colorB = safeColor(config.colorB, "#788dff");
   const [aR, aG, aB] = hexToRgb(colorA);
   const [bR, bG, bB] = hexToRgb(colorB);
-  const seed = Math.trunc(clamp(config.seed, 0, 4294967295));
+  const seed = toShaderSeed(config.seed);
   const speed = clamp(config.speed, 0, 2);
   const intensity = clamp(config.intensity, 0, 1);
   const radius = clamp(config.radius, 24, 96);
