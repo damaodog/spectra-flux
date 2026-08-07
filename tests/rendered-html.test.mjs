@@ -29,13 +29,14 @@ test("server-renders the WebGL card generator", async () => {
   assert.match(html, /<title>LUMA LAB — WebGL Card Generator<\/title>/i);
   assert.match(html, /COLOR AS A LIVING SYSTEM\./);
   assert.match(html, /一键全部随机/);
-  assert.match(html, /复制此样式/);
-  assert.match(html, /六张共享设置/);
-  assert.match(html, /STYLE 01/);
-  assert.match(html, /STYLE 06/);
-  assert.equal((html.match(/class="preview-card"/g) || []).length, 6);
-  assert.match(html, /--card-width:800px/);
-  assert.match(html, /--card-height:300px/);
+  assert.match(html, /查看 01 柔雾扩散/);
+  assert.match(html, /查看 06 深景云雾/);
+  assert.equal((html.match(/class="preview-card"/g) || []).length, 1);
+  assert.equal((html.match(/<canvas/g) || []).length, 1);
+  assert.equal((html.match(/class="style-tab(?: |")/g) || []).length, 6);
+  assert.match(html, /--card-width:400px/);
+  assert.match(html, /--card-height:100px/);
+  assert.doesNotMatch(html, /复制此样式|六张共享设置|手动复制 HTML/);
   assert.doesNotMatch(
     html,
     /codex-preview|react-loading-skeleton|Building your site/i,

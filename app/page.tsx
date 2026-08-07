@@ -3,7 +3,6 @@
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import {
-  buildEmbed,
   createGallery,
   DEFAULT_CARD_HEIGHT,
   DEFAULT_CARD_WIDTH,
@@ -177,9 +176,10 @@ function WebGLPreview({ config, playing }: PreviewProps) {
 
 export default function Home() {
   const [cards, setCards] = useState(() => makeCards(20260807));
+  const [activeIndex, setActiveIndex] = useState(0);
   const [playing, setPlaying] = useState(true);
-  const [notice, setNotice] = useState("六款彩雾实时渲染中");
-  const [fallbackCode, setFallbackCode] = useState("");
+  const [notice, setNotice] = useState("当前显示 01 · 柔雾扩散");
+  const activeCard = cards[activeIndex];
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -187,11 +187,6 @@ export default function Home() {
       setNotice("已按系统设置暂停动画");
     }
   }, []);
-
-  const updateShared = <Key extends "title" | "subtitle" | "radius" | "width" | "height">(
-    key: Key,
-    value: CardConfig[Key],
-  ) => setCards((current) => current.map((card) => ({ ...card, [key]: value })));
 
   const randomizeAll = () => {
     const values = new Uint32Array(1);
@@ -201,21 +196,16 @@ export default function Home() {
     setCards((current) =>
       current.map((card, index) => ({ ...card, ...visuals[index] })),
     );
-    setFallbackCode("");
     setNotice(`六款已全部随机 · ${masterSeed}`);
   };
 
-  const copyHtml = async (card: CardConfig) => {
-    const html = buildEmbed(card);
-    try {
-      await navigator.clipboard.writeText(html);
-      setFallbackCode("");
-      setNotice(`${card.label} 的 HTML 已复制`);
-    } catch {
-      setFallbackCode(html);
-      setNotice("剪贴板不可用，请在下方手动复制");
-    }
-  };
+  const cardStyle = {
+    "--card-a": activeCard.colorA,
+    "--card-b": activeCard.colorB,
+    "--card-radius": `${activeCard.radius}px`,
+    "--card-width": `${activeCard.width}px`,
+    "--card-height": `${activeCard.height}px`,
+  } as CSSProperties;
 
   return (
     <main className="studio">
@@ -231,15 +221,15 @@ export default function Home() {
       <section className="intro" id="top">
         <div>
           <span className="eyebrow">SIX GENERATIVE SMOKE STUDIES / 2026</span>
-          <h1>六种彩雾，<br />同时比较。</h1>
+          <h1>一张卡片，<br />六种彩雾。</h1>
         </div>
         <p>
-          六张卡片固定使用不同的烟雾结构。点击一次，全部获得不同配色、种子与动态，
-          直接告诉我最接近你想法的编号。
+          页面始终只渲染一个 WebGL 画布。用编号切换六种烟雾结构，
+          点击一次即可让六款获得各自不同的配色、种子与动态。
         </p>
       </section>
 
-      <section className="workspace" aria-label="六款动态彩雾卡片">
+      <section className="workspace" aria-label="单张动态彩雾卡片">
         <div className="toolbar" aria-label="常用操作">
           <button className="button button-primary" onClick={randomizeAll}>
             <span aria-hidden="true">✦</span> 一键全部随机
@@ -251,8 +241,8 @@ export default function Home() {
             className="button button-quiet"
             onClick={() => {
               setCards(makeCards(20260807));
-              setFallbackCode("");
-              setNotice("已恢复默认六款卡片");
+              setActiveIndex(0);
+              setNotice("已恢复默认 · 01 柔雾扩散");
             }}
           >
             重置
@@ -260,126 +250,54 @@ export default function Home() {
           <span className="toolbar-status" aria-live="polite">{notice}</span>
         </div>
 
-        <div className="card-gallery">
-          {cards.map((card, index) => {
-            const cardStyle = {
-              "--card-a": card.colorA,
-              "--card-b": card.colorB,
-              "--card-radius": `${card.radius}px`,
-              "--card-width": `${card.width}px`,
-              "--card-height": `${card.height}px`,
-            } as CSSProperties;
+        <div className="single-preview">
+          <div className="style-heading" aria-live="polite">
+            <b>{String(activeIndex + 1).padStart(2, "0")}</b>
+            <span>{variantNames[activeIndex]}</span>
+          </div>
 
-            return (
-              <section className="gallery-item" key={card.variant}>
-                <div className="gallery-meta">
-                  <div>
-                    <b>{String(index + 1).padStart(2, "0")}</b>
-                    <span>{variantNames[index]}</span>
-                  </div>
-                  <button className="copy-style" onClick={() => copyHtml(card)}>
-                    复制此样式
-                  </button>
-                </div>
-                <article className="preview-card" style={cardStyle}>
-                  <div className="card-copy">
-                    <span className="card-label">{card.label}</span>
-                    <h2>{card.title}</h2>
-                    <p>{card.subtitle}</p>
-                    <div className="card-index">
-                      <span>SEED</span>
-                      <b>{String(card.seed).padStart(10, "0").slice(-10)}</b>
-                    </div>
-                  </div>
-                  <div className="card-visual">
-                    <WebGLPreview config={card} playing={playing} />
-                  </div>
-                </article>
-              </section>
-            );
-          })}
+          <article className="preview-card" style={cardStyle}>
+            <div className="card-copy">
+              <span className="card-label">{activeCard.label}</span>
+              <h2>{activeCard.title}</h2>
+              <p>{activeCard.subtitle}</p>
+              <div className="card-index">
+                <span>SEED</span>
+                <b>{String(activeCard.seed).padStart(10, "0").slice(-10)}</b>
+              </div>
+            </div>
+            <div className="card-visual">
+              <WebGLPreview
+                key={activeCard.variant}
+                config={activeCard}
+                playing={playing}
+              />
+            </div>
+          </article>
+
+          <nav className="style-tabs" aria-label="选择烟雾样式">
+            {variantNames.map((name, index) => (
+              <button
+                className={`style-tab${activeIndex === index ? " is-active" : ""}`}
+                aria-label={`查看 ${String(index + 1).padStart(2, "0")} ${name}`}
+                aria-pressed={activeIndex === index}
+                onClick={() => {
+                  setActiveIndex(index);
+                  setNotice(`当前显示 ${String(index + 1).padStart(2, "0")} · ${name}`);
+                }}
+                key={name}
+              >
+                {String(index + 1).padStart(2, "0")}
+              </button>
+            ))}
+          </nav>
         </div>
-
-        {fallbackCode && (
-          <div className="manual-copy">
-            <label htmlFor="export-code">手动复制 HTML</label>
-            <textarea
-              id="export-code"
-              readOnly
-              value={fallbackCode}
-              onFocus={(event) => event.currentTarget.select()}
-            />
-          </div>
-        )}
-
-        <details className="advanced">
-          <summary>
-            <span>六张共享设置</span>
-            <small>文字 · 圆角 · 尺寸</small>
-          </summary>
-          <div className="control-grid">
-            <label className="field field-wide">
-              <span>标题</span>
-              <input
-                value={cards[0].title}
-                maxLength={42}
-                onChange={(event) => updateShared("title", event.target.value)}
-              />
-            </label>
-            <label className="field field-wide">
-              <span>正文</span>
-              <input
-                value={cards[0].subtitle}
-                maxLength={80}
-                onChange={(event) => updateShared("subtitle", event.target.value)}
-              />
-            </label>
-            <RangeField label="圆角" value={cards[0].radius} min={24} max={96} step={1} suffix="px" onChange={(value) => updateShared("radius", value)} />
-            <RangeField label="宽度" value={cards[0].width} min={480} max={1600} step={20} suffix="px" onChange={(value) => updateShared("width", value)} />
-            <RangeField label="高度" value={cards[0].height} min={220} max={900} step={10} suffix="px" onChange={(value) => updateShared("height", value)} />
-          </div>
-        </details>
       </section>
 
       <footer>
-        <span>SIX CARDS · ONE SHADER · ZERO DEPENDENCIES</span>
-        <span>800 × 300 · COLOR AREA 65%</span>
+        <span>ONE CANVAS · SIX SMOKE STUDIES</span>
+        <span>400 × 100 · COLOR AREA 65%</span>
       </footer>
     </main>
-  );
-}
-
-type RangeFieldProps = {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  suffix?: string;
-  onChange: (value: number) => void;
-};
-
-function RangeField({
-  label,
-  value,
-  min,
-  max,
-  step,
-  suffix = "",
-  onChange,
-}: RangeFieldProps) {
-  return (
-    <label className="field range-field">
-      <span>{label}</span>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-      />
-      <output>{value}{suffix}</output>
-    </label>
   );
 }
