@@ -16,7 +16,7 @@ export type CardConfig = {
 export const DEFAULT_CARD_WIDTH = 400;
 export const DEFAULT_CARD_HEIGHT = 100;
 export const SMOKE_VARIANT_COUNT = 6;
-export const SMOKE_TIME_SCALE = 5;
+export const SMOKE_TIME_SCALE = 8;
 
 export const VERTEX_SHADER = `#version 300 es
 in vec2 position;
@@ -63,25 +63,26 @@ void main(){
   vec2 uv = gl_FragCoord.xy / resolution.xy;
   vec2 p = (uv - 0.5) * vec2(resolution.x / resolution.y, 1.0);
   float phase = seed * 0.013;
-  vec2 smokeDrift = vec2(
-    sin(time * 0.42 + phase),
-    cos(time * 0.34 - phase)
+  float flowTime = time;
+  float travelTime = time * 0.025;
+  vec2 flowDrift = vec2(
+    sin(flowTime * 0.42 + phase),
+    cos(flowTime * 0.34 - phase)
   );
-  float fogA = fbm(p * 2.0 + smokeDrift * 0.32);
-  float fogB = fbm(p * 3.2 - smokeDrift.yx * 0.25 + vec2(7.3));
+  vec2 travelDrift = vec2(
+    sin(travelTime + phase),
+    cos(travelTime * 0.83 - phase)
+  );
+  vec2 macroDrift = travelDrift * 1.8;
+  float fogA = fbm(p * 2.0 + flowDrift * 0.32);
+  float fogB = fbm(p * 3.2 - flowDrift.yx * 0.25 + vec2(7.3));
   vec2 warped = p + vec2(fogA - 0.5, fogB - 0.5) * 0.34;
 
   vec2 shape = warped;
-  vec2 centerA = vec2(-0.32, 0.16) + smokeDrift * vec2(0.18, 0.10);
-  vec2 centerB = vec2(0.08, -0.18) + smokeDrift.yx * vec2(-0.13, 0.16);
-  vec2 centerC = vec2(0.78, 0.12) + vec2(
-    sin(time * 0.29 - phase),
-    cos(time * 0.37 + phase)
-  ) * 0.14;
-  vec2 centerD = vec2(0.62, -0.38) + vec2(
-    cos(time * 0.31 + phase),
-    sin(time * 0.27)
-  ) * 0.12;
+  vec2 centerA = vec2(-0.32, 0.16) + macroDrift * vec2(0.18, 0.10);
+  vec2 centerB = vec2(0.08, -0.18) + macroDrift.yx * vec2(-0.13, 0.16);
+  vec2 centerC = vec2(0.78, 0.12) + macroDrift.yx * 0.14;
+  vec2 centerD = vec2(0.62, -0.38) - macroDrift * 0.12;
   vec2 scaleA = vec2(0.72, 1.0);
   vec2 scaleB = vec2(0.82, 1.0);
   vec2 scaleC = vec2(0.56, 0.94);
@@ -89,10 +90,10 @@ void main(){
   vec4 outer = vec4(0.62, 0.56, 0.72, 0.68);
 
   if(variant == 1){
-    centerA = vec2(-0.08, 0.16) + smokeDrift * 0.12;
-    centerB = vec2(0.18, -0.10) - smokeDrift.yx * 0.10;
-    centerC = vec2(0.52, 0.18) + smokeDrift.yx * 0.11;
-    centerD = vec2(0.70, -0.16) - smokeDrift * 0.10;
+    centerA = vec2(-0.08, 0.16) + macroDrift * 0.12;
+    centerB = vec2(0.18, -0.10) - macroDrift.yx * 0.10;
+    centerC = vec2(0.52, 0.18) + macroDrift.yx * 0.11;
+    centerD = vec2(0.70, -0.16) - macroDrift * 0.10;
     scaleA = vec2(0.58, 0.90);
     scaleB = vec2(0.62, 0.88);
     scaleC = vec2(0.54, 0.86);
@@ -101,7 +102,7 @@ void main(){
   }
   if(variant == 2){
     shape = vec2(
-      warped.x + sin(warped.y * 3.8 + time * 0.24 + phase) * 0.16,
+      warped.x + sin(warped.y * 3.8 + flowTime * 0.24 + phase) * 0.16,
       warped.y
     );
     centerA = vec2(-0.10, 0.40);
@@ -113,10 +114,10 @@ void main(){
   }
   if(variant == 3){
     shape += normalize(shape + vec2(0.001)) * (fogB - 0.5) * 0.30;
-    centerA = vec2(-0.02, 0.08) + smokeDrift * 0.10;
-    centerB = vec2(0.28, -0.14) - smokeDrift.yx * 0.10;
-    centerC = vec2(0.58, 0.22) + smokeDrift.yx * 0.12;
-    centerD = vec2(0.82, -0.20) - smokeDrift * 0.08;
+    centerA = vec2(-0.02, 0.08) + macroDrift * 0.10;
+    centerB = vec2(0.28, -0.14) - macroDrift.yx * 0.10;
+    centerC = vec2(0.58, 0.22) + macroDrift.yx * 0.12;
+    centerD = vec2(0.82, -0.20) - macroDrift * 0.08;
     scaleA = vec2(0.82, 0.82);
     scaleB = vec2(0.74, 0.78);
     scaleC = vec2(0.68, 0.72);
@@ -125,25 +126,31 @@ void main(){
   }
   if(variant == 4){
     shape = mat2(0.94, -0.34, 0.34, 0.94) * warped;
-    centerA = vec2(-0.20, 0.34) + smokeDrift * 0.10;
-    centerB = vec2(0.12, 0.08) - smokeDrift.yx * 0.11;
-    centerC = vec2(0.48, -0.16) + smokeDrift * 0.12;
-    centerD = vec2(0.84, -0.38) - smokeDrift.yx * 0.10;
+    centerA = vec2(-0.20, 0.34) + macroDrift * 0.10;
+    centerB = vec2(0.12, 0.08) - macroDrift.yx * 0.11;
+    centerC = vec2(0.48, -0.16) + macroDrift * 0.12;
+    centerD = vec2(0.84, -0.38) - macroDrift.yx * 0.10;
     scaleA = scaleB = scaleC = scaleD = vec2(0.58, 1.10);
     outer = vec4(0.66, 0.62, 0.70, 0.66);
   }
   if(variant == 5){
     shape = warped + vec2((fogA - 0.5) * 0.42, (fogB - 0.5) * 0.18);
-    centerA = vec2(-0.08, 0.06) + smokeDrift * 0.06;
-    centerB = vec2(0.62, -0.02) - smokeDrift.yx * 0.07;
-    centerC = vec2(0.38, 0.30) + smokeDrift.yx * 0.16;
-    centerD = vec2(0.84, -0.30) - smokeDrift * 0.14;
+    centerA = vec2(-0.08, 0.06) + macroDrift * 0.06;
+    centerB = vec2(0.62, -0.02) - macroDrift.yx * 0.07;
+    centerC = vec2(0.38, 0.30) + macroDrift.yx * 0.16;
+    centerD = vec2(0.84, -0.30) - macroDrift * 0.14;
     scaleA = vec2(0.38, 0.66);
     scaleB = vec2(0.42, 0.70);
     scaleC = vec2(0.92, 1.18);
     scaleD = vec2(0.86, 1.12);
     outer = vec4(0.92, 0.88, 0.52, 0.48);
   }
+
+  float horizontalScale = 1.0 / 1.4;
+  scaleA.x *= horizontalScale;
+  scaleB.x *= horizontalScale;
+  scaleC.x *= horizontalScale;
+  scaleD.x *= horizontalScale;
 
   float cloudA = 1.0 - smoothstep(0.08, outer.x, length((shape - centerA) * scaleA));
   float cloudB = 1.0 - smoothstep(0.08, outer.y, length((shape - centerB) * scaleB));

@@ -37,8 +37,8 @@ test("shader seeds stay inside the precise 16-bit float range", () => {
   assert.equal(toShaderSeed(-1), 0);
 });
 
-test("smoke animation uses the shared five-times scale", () => {
-  assert.equal(SMOKE_TIME_SCALE, 5);
+test("smoke animation uses the shared eight-times scale", () => {
+  assert.equal(SMOKE_TIME_SCALE, 8);
 
   const html = buildEmbed({
     title: "SPECTRA",
@@ -55,7 +55,7 @@ test("smoke animation uses the shared five-times scale", () => {
     variant: 0,
   });
 
-  assert.match(html, /now\*\.001\*0\.8\*5/);
+  assert.match(html, /now\*\.001\*0\.8\*8/);
 });
 
 test("buildEmbed escapes copy and has no network dependency", () => {
@@ -87,8 +87,18 @@ test("buildEmbed escapes copy and has no network dependency", () => {
 
 test("the fragment shader renders smoke without mixed effects", () => {
   assert.match(FRAGMENT_SHADER, /float smokeDensity\s*=/);
-  assert.match(FRAGMENT_SHADER, /vec2 smokeDrift\s*=/);
+  assert.match(FRAGMENT_SHADER, /vec2 flowDrift\s*=/);
   assert.doesNotMatch(FRAGMENT_SHADER, /ripple|particles|veins|grain/i);
+});
+
+test("the shader separates fast flow from long travel without extra FBM work", () => {
+  assert.match(FRAGMENT_SHADER, /float flowTime\s*=\s*time;/);
+  assert.match(FRAGMENT_SHADER, /float travelTime\s*=\s*time \* 0\.025;/);
+  assert.match(FRAGMENT_SHADER, /vec2 flowDrift\s*=/);
+  assert.match(FRAGMENT_SHADER, /vec2 travelDrift\s*=/);
+  assert.match(FRAGMENT_SHADER, /vec2 macroDrift\s*=\s*travelDrift \* 1\.8;/);
+  assert.match(FRAGMENT_SHADER, /float horizontalScale\s*=\s*1\.0 \/ 1\.4;/);
+  assert.equal((FRAGMENT_SHADER.match(/= fbm\(/g) || []).length, 2);
 });
 
 test("the shader has six variants and independent alpha layers", () => {
