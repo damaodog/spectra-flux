@@ -75,3 +75,20 @@ test("the whole card lifts on precise-pointer hover and respects reduced motion"
     /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.preview-card:hover\s*\{\s*transform:\s*none;/,
   );
 });
+
+test("the gallery uses two columns and a 25 to 75 card split", async () => {
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+
+  assert.match(
+    css,
+    /\.atlas-gallery\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 400px\)\)/s,
+  );
+  assert.match(
+    css,
+    /\.preview-card\s*\{[^}]*grid-template-columns:\s*25% 75%/s,
+  );
+  assert.match(
+    css,
+    /@media \(max-width: 900px\)[\s\S]*\.atlas-gallery\s*\{[^}]*grid-template-columns:\s*minmax\(0, 400px\)/,
+  );
+});
