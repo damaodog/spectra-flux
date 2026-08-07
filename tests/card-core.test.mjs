@@ -101,6 +101,17 @@ test("the shader separates fast flow from long travel without extra FBM work", (
   assert.equal((FRAGMENT_SHADER.match(/= fbm\(/g) || []).length, 2);
 });
 
+test("fast smoke flow advects forward instead of returning every two seconds", () => {
+  assert.match(
+    FRAGMENT_SHADER,
+    /vec2 flowDrift\s*=\s*vec2\(\s*flowTime \* 0\.10,\s*flowTime \* 0\.07\s*\);/,
+  );
+  assert.doesNotMatch(
+    FRAGMENT_SHADER,
+    /vec2 flowDrift\s*=\s*vec2\(\s*sin\(flowTime/,
+  );
+});
+
 test("the shader has six variants and independent alpha layers", () => {
   assert.match(FRAGMENT_SHADER, /uniform int variant;/);
   assert.match(FRAGMENT_SHADER, /float layerAlphaA\s*=/);

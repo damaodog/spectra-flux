@@ -66,16 +66,16 @@ void main(){
   float flowTime = time;
   float travelTime = time * 0.025;
   vec2 flowDrift = vec2(
-    sin(flowTime * 0.42 + phase),
-    cos(flowTime * 0.34 - phase)
+    flowTime * 0.10,
+    flowTime * 0.07
   );
   vec2 travelDrift = vec2(
     sin(travelTime + phase),
     cos(travelTime * 0.83 - phase)
   );
   vec2 macroDrift = travelDrift * 1.8;
-  float fogA = fbm(p * 2.0 + flowDrift * 0.32);
-  float fogB = fbm(p * 3.2 - flowDrift.yx * 0.25 + vec2(7.3));
+  float fogA = fbm(p * 2.0 + flowDrift);
+  float fogB = fbm(p * 3.2 + vec2(-flowDrift.y, flowDrift.x) * 0.82 + vec2(7.3));
   vec2 warped = p + vec2(fogA - 0.5, fogB - 0.5) * 0.34;
 
   vec2 shape = warped;
