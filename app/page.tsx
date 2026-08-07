@@ -8,6 +8,7 @@ import {
   DEFAULT_CARD_WIDTH,
   FRAGMENT_SHADER,
   hexToRgb,
+  SMOKE_VARIANT_COUNT,
   SMOKE_TIME_SCALE,
   toShaderSeed,
   VERTEX_SHADER,
@@ -21,6 +22,12 @@ const variantNames = [
   "墨滴晕染",
   "斜向漂移",
   "深景云雾",
+  "双流撞击",
+  "墨云扩散",
+  "色域融合",
+  "潮汐呼吸",
+  "急速奔流",
+  "慢雾沉降",
 ] as const;
 
 const sharedInitial = {
@@ -44,7 +51,7 @@ type GalleryProps = {
 };
 
 const ATLAS_COLUMNS = 2;
-const ATLAS_ROWS = 3;
+const ATLAS_ROWS = Math.ceil(SMOKE_VARIANT_COUNT / ATLAS_COLUMNS);
 
 function AtlasGallery({ configs, playing }: GalleryProps) {
   const canvasRefs = useRef<Array<HTMLCanvasElement | null>>([]);
@@ -166,7 +173,10 @@ function AtlasGallery({ configs, playing }: GalleryProps) {
 
       const resize = () => {
         const box = targets[0].getBoundingClientRect();
-        const ratio = Math.min(window.devicePixelRatio || 1, 2);
+        const ratio = Math.min(
+          window.devicePixelRatio || 1,
+          configs.length > 6 ? 1.5 : 2,
+        );
         tileWidth = Math.max(1, Math.round(box.width * ratio));
         tileHeight = Math.max(1, Math.round(box.height * ratio));
         source.width = tileWidth * ATLAS_COLUMNS;
@@ -215,30 +225,32 @@ function AtlasGallery({ configs, playing }: GalleryProps) {
           "--card-width": `${config.width}px`,
           "--card-height": `${config.height}px`,
         } as CSSProperties;
+        const studyNumber = String(index + 1).padStart(2, "0");
 
         return (
-          <article
-            className="preview-card"
-            style={cardStyle}
-            aria-label={`SPECTRA ${String(index + 1).padStart(2, "0")}`}
-            key={config.variant}
-          >
-            <div className="card-copy">
-              <span className="card-meta">
-                {`${String(index + 1).padStart(2, "0")} · ${variantNames[index]}`}
-              </span>
-              <h2>{config.title}</h2>
-              <p>{config.subtitle}</p>
-            </div>
-            <div className="card-visual">
-              <canvas
-                ref={(canvas) => {
-                  canvasRefs.current[index] = canvas;
-                }}
-                aria-hidden="true"
-              />
-            </div>
-          </article>
+          <div className="card-study" key={config.variant}>
+            <span className="study-meta">
+              {`${studyNumber} · ${variantNames[index]}`}
+            </span>
+            <article
+              className="preview-card"
+              style={cardStyle}
+              aria-label={`SPECTRA ${studyNumber} ${variantNames[index]}`}
+            >
+              <div className="card-copy">
+                <h2>{config.title}</h2>
+                <p>{config.subtitle}</p>
+              </div>
+              <div className="card-visual">
+                <canvas
+                  ref={(canvas) => {
+                    canvasRefs.current[index] = canvas;
+                  }}
+                  aria-hidden="true"
+                />
+              </div>
+            </article>
+          </div>
         );
       })}
     </div>
@@ -248,7 +260,7 @@ function AtlasGallery({ configs, playing }: GalleryProps) {
 export default function Home() {
   const [cards, setCards] = useState(() => makeCards(20260807));
   const [playing, setPlaying] = useState(true);
-  const [notice, setNotice] = useState("六款墨流同时展示");
+  const [notice, setNotice] = useState("十二款墨流同时展示");
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -265,7 +277,7 @@ export default function Home() {
     setCards((current) =>
       current.map((card, index) => ({ ...card, ...visuals[index] })),
     );
-    setNotice(`六款已全部随机 · ${masterSeed}`);
+    setNotice(`十二款已全部随机 · ${masterSeed}`);
   };
 
   return (
@@ -281,16 +293,16 @@ export default function Home() {
 
       <section className="intro" id="top">
         <div>
-          <span className="eyebrow">SIX GENERATIVE SMOKE STUDIES / 2026</span>
-          <h1>六张卡片，<br />六种墨流。</h1>
+          <span className="eyebrow">TWELVE GENERATIVE SMOKE STUDIES / 2026</span>
+          <h1>十二张卡片，<br />十二种墨流。</h1>
         </div>
         <p>
-          六张卡片由一个 WebGL 图集同步驱动。每次随机都会更新六套配色、种子与流动结构，
+          十二张卡片由一个 WebGL 图集同步驱动。每次随机都会更新十二套配色、种子与流动结构，
           同时保持页面轻量流畅。
         </p>
       </section>
 
-      <section className="workspace" aria-label="六张动态墨流卡片">
+      <section className="workspace" aria-label="十二张动态墨流卡片">
         <div className="toolbar" aria-label="常用操作">
           <button className="button button-primary" onClick={randomizeAll}>
             <span aria-hidden="true">✦</span> 一键全部随机
@@ -302,7 +314,7 @@ export default function Home() {
             className="button button-quiet"
             onClick={() => {
               setCards(makeCards(20260807));
-              setNotice("已恢复六款默认墨流");
+              setNotice("已恢复十二款默认墨流");
             }}
           >
             重置
@@ -314,7 +326,7 @@ export default function Home() {
       </section>
 
       <footer>
-        <span>ONE WEBGL CONTEXT · SIX INK STUDIES</span>
+        <span>ONE WEBGL CONTEXT · TWELVE INK STUDIES</span>
         <span>400 × 100 · COLOR AREA 75%</span>
       </footer>
     </main>

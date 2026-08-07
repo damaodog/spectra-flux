@@ -30,21 +30,33 @@ test("server-renders the WebGL card generator", async () => {
   assert.match(html, /<title>LUMA LAB — WebGL Card Generator<\/title>/i);
   assert.match(html, /COLOR AS A LIVING SYSTEM\./);
   assert.match(html, /一键全部随机/);
-  assert.equal((html.match(/class="preview-card"/g) || []).length, 6);
-  assert.equal((html.match(/class="card-copy"/g) || []).length, 6);
-  assert.equal((html.match(/<canvas/g) || []).length, 6);
-  assert.equal((html.match(/class="card-meta"/g) || []).length, 6);
-  const cardMeta = [
+  assert.equal((html.match(/class="card-study"/g) || []).length, 12);
+  assert.equal((html.match(/class="preview-card"/g) || []).length, 12);
+  assert.equal((html.match(/class="card-copy"/g) || []).length, 12);
+  assert.equal((html.match(/<canvas/g) || []).length, 12);
+  assert.equal((html.match(/class="study-meta"/g) || []).length, 12);
+  assert.equal((html.match(/class="card-meta"/g) || []).length, 0);
+  const studyMeta = [
     "01 · 柔雾扩散",
     "02 · 彩墨叠层",
     "03 · 横向薄纱",
     "04 · 墨滴晕染",
     "05 · 斜向漂移",
     "06 · 深景云雾",
+    "07 · 双流撞击",
+    "08 · 墨云扩散",
+    "09 · 色域融合",
+    "10 · 潮汐呼吸",
+    "11 · 急速奔流",
+    "12 · 慢雾沉降",
   ];
-  cardMeta.forEach((label) => assert.match(html, new RegExp(label)));
-  assert.equal((html.match(/--card-width:400px/g) || []).length, 6);
-  assert.equal((html.match(/--card-height:100px/g) || []).length, 6);
+  studyMeta.forEach((label) => assert.match(html, new RegExp(label)));
+  assert.equal((html.match(/--card-width:400px/g) || []).length, 12);
+  assert.equal((html.match(/--card-height:100px/g) || []).length, 12);
+  assert.match(
+    html,
+    /class="card-study"><span class="study-meta">01 · 柔雾扩散<\/span><article/,
+  );
   assert.doesNotMatch(
     html,
     /class="(?:card-label|card-index|render-label|webgl-error|style-heading|style-tab)/,
@@ -56,7 +68,7 @@ test("server-renders the WebGL card generator", async () => {
   );
 });
 
-test("the gallery shares one WebGL atlas across six 2D canvases", async () => {
+test("the gallery shares one WebGL atlas across twelve 2D canvases", async () => {
   const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
 
   assert.equal((source.match(/getContext\("webgl2"/g) || []).length, 1);
@@ -65,6 +77,11 @@ test("the gallery shares one WebGL atlas across six 2D canvases", async () => {
   assert.match(source, /paramsRef\.current\.forEach\(\(config, index\)/);
   assert.match(source, /gl\.viewport\(atlasX, atlasY, tileWidth, tileHeight\)/);
   assert.match(source, /context\?\.drawImage\(/);
+  assert.match(
+    source,
+    /const ATLAS_ROWS = Math\.ceil\(SMOKE_VARIANT_COUNT \/ ATLAS_COLUMNS\);/,
+  );
+  assert.match(source, /configs\.length > 6 \? 1\.5 : 2/);
   assert.doesNotMatch(source, /function WebGLPreview|activeIndex|style-tabs/);
 });
 
