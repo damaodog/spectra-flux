@@ -10,7 +10,12 @@ export type CardConfig = {
   radius: number;
   width: number;
   height: number;
+  variant: number;
 };
+
+export const DEFAULT_CARD_WIDTH = 800;
+export const DEFAULT_CARD_HEIGHT = 300;
+export const SMOKE_VARIANT_COUNT = 6;
 
 export const VERTEX_SHADER = `#version 300 es
 in vec2 position;
@@ -136,6 +141,13 @@ export function createPreset(seed: number) {
     speed: Number((0.45 + random() * 1.15).toFixed(2)),
     intensity: Number((0.45 + random() * 0.5).toFixed(2)),
   };
+}
+
+export function createGallery(seed: number) {
+  return Array.from({ length: SMOKE_VARIANT_COUNT }, (_, variant) => {
+    const cardSeed = (seed + Math.imul(variant + 1, 0x9e3779b1)) >>> 0;
+    return { ...createPreset(cardSeed), seed: cardSeed, variant };
+  });
 }
 
 const clamp = (value: number, min: number, max: number) =>

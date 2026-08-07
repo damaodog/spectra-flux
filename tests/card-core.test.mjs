@@ -2,13 +2,31 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildEmbed,
+  createGallery,
   createPreset,
+  DEFAULT_CARD_HEIGHT,
+  DEFAULT_CARD_WIDTH,
   FRAGMENT_SHADER,
+  SMOKE_VARIANT_COUNT,
 } from "../app/card-core.ts";
 
 test("createPreset is deterministic for a seed", () => {
   assert.deepEqual(createPreset(2026), createPreset(2026));
   assert.notDeepEqual(createPreset(2026), createPreset(2027));
+});
+
+test("the default card is 800 by 300", () => {
+  assert.equal(DEFAULT_CARD_WIDTH, 800);
+  assert.equal(DEFAULT_CARD_HEIGHT, 300);
+});
+
+test("createGallery returns six unique fixed variants", () => {
+  const gallery = createGallery(2026);
+  assert.equal(gallery.length, SMOKE_VARIANT_COUNT);
+  assert.deepEqual(gallery.map((card) => card.variant), [0, 1, 2, 3, 4, 5]);
+  assert.equal(new Set(gallery.map((card) => card.seed)).size, 6);
+  assert.deepEqual(gallery, createGallery(2026));
+  assert.notDeepEqual(gallery, createGallery(2027));
 });
 
 test("buildEmbed escapes copy and has no network dependency", () => {
@@ -24,6 +42,7 @@ test("buildEmbed escapes copy and has no network dependency", () => {
     radius: 64,
     width: 1200,
     height: 420,
+    variant: 0,
   };
 
   const html = buildEmbed(config);

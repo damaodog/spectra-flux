@@ -23,6 +23,7 @@ const initial: CardConfig = {
   radius: 64,
   width: 1200,
   height: 420,
+  variant: 0,
 };
 
 type PreviewProps = {
