@@ -98,6 +98,19 @@ test("the gallery shares one WebGL atlas across twelve 2D canvases", async () =>
   assert.doesNotMatch(source, /function WebGLPreview|activeIndex|style-tabs/);
 });
 
+test("canvas resizing is deferred outside ResizeObserver delivery", async () => {
+  const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /let resizeFrame = 0;/);
+  assert.match(
+    source,
+    /new ResizeObserver\(\(\) => \{\s*cancelAnimationFrame\(resizeFrame\);\s*resizeFrame = requestAnimationFrame\(resize\);\s*\}\)/s,
+  );
+  assert.match(source, /observer\.observe\(targets\[0\]\)/);
+  assert.match(source, /if \(source\.width !== nextSourceWidth\)/);
+  assert.match(source, /cancelAnimationFrame\(resizeFrame\);/);
+});
+
 test("the whole card lifts on precise-pointer hover and respects reduced motion", async () => {
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
 

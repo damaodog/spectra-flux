@@ -102,9 +102,12 @@ vec4 lensField(vec2 p, float t, vec4 q){
 vec4 glowField(vec2 p, float t, vec4 q){
   float curtain = sin(p.x * (1.2 + q.x) - t * 0.13) * 0.18;
   float haze = fbm(p * vec2(0.78, 2.6) + vec2(t * 0.05, 4.0));
-  float core = band(p.y - curtain - (haze - 0.5) * 0.34, 0.18);
-  float halo = band(p.y + curtain * 0.7 + (haze - 0.5) * 0.22, 0.42);
-  return vec4(core, halo, core * (0.5 + 0.5 * sin(p.x * 2.2 + t)), haze * halo);
+  float coreLine = p.y - curtain - (haze - 0.5) * 0.34;
+  float haloLine = p.y + curtain * 0.7 + (haze - 0.5) * 0.22;
+  float core = band(coreLine, 0.10);
+  float halo = band(haloLine, 0.25);
+  float glowRidge = band(coreLine + sin(p.x * 3.1 - t * 0.18) * 0.06, 0.035);
+  return vec4(core, halo, glowRidge, haze * halo);
 }
 
 vec4 waveField(vec2 p, float t, vec4 q){
@@ -114,11 +117,15 @@ vec4 waveField(vec2 p, float t, vec4 q){
 }
 
 vec4 gelField(vec2 p, float t, vec4 q){
-  vec2 c1 = vec2(-0.34 + sin(t*0.10)*0.28, sin(t*0.08)*0.16);
-  vec2 c2 = vec2(0.42 + cos(t*0.09)*0.24, cos(t*0.07)*0.18);
-  float g1 = 1.0-smoothstep(0.34,0.92,length((p-c1)*vec2(0.72,1.0)));
-  float g2 = 1.0-smoothstep(0.30,0.86,length((p-c2)*vec2(0.72,1.0)));
-  return vec4(g1,g2,min(g1,g2),smoothstep(0.16,0.72,g1+g2));
+  vec2 c1 = vec2(-0.42 + sin(t * 0.10) * 0.30, sin(t * 0.08) * 0.18);
+  vec2 c2 = vec2(0.48 + cos(t * 0.09) * 0.26, cos(t * 0.07) * 0.20);
+  float d1 = length((p - c1) * vec2(0.72, 1.0));
+  float d2 = length((p - c2) * vec2(0.72, 1.0));
+  float g1 = 1.0 - smoothstep(0.28, 0.70, d1);
+  float g2 = 1.0 - smoothstep(0.26, 0.66, d2);
+  float gelRim = max(band(d1 - 0.46, 0.035), band(d2 - 0.42, 0.035));
+  float gelCore = smoothstep(0.20, 0.66, g1 + g2);
+  return vec4(g1, g2, gelRim, gelCore);
 }
 
 vec4 magnetField(vec2 p, float t, vec4 q){
@@ -154,10 +161,13 @@ vec4 interferenceField(vec2 p, float t, vec4 q){
 }
 
 vec4 forceField(vec2 p, float t, vec4 q){
-  float left = 1.0-smoothstep(0.24,1.18,length((p-vec2(-0.42+sin(t*0.08)*0.20,0.0))*vec2(0.62,1.0)));
-  float right = 1.0-smoothstep(0.24,1.18,length((p-vec2(0.46-cos(t*0.07)*0.18,0.0))*vec2(0.62,1.0)));
-  float flow = fbm(p*vec2(1.0+q.x*0.3,2.8)+vec2(t*0.06,-t*0.04));
-  return vec4(left,right,min(left,right)*(0.5+flow),max(left,right)*(1.0-flow*0.34));
+  float left = 1.0 - smoothstep(0.20, 0.98, length((p - vec2(-0.42 + sin(t * 0.08) * 0.20, 0.0)) * vec2(0.62, 1.0)));
+  float right = 1.0 - smoothstep(0.20, 0.98, length((p - vec2(0.46 - cos(t * 0.07) * 0.18, 0.0)) * vec2(0.62, 1.0)));
+  float flow = fbm(p * vec2(1.0 + q.x * 0.3, 2.8) + vec2(t * 0.06, -t * 0.04));
+  float channelLine = p.y - sin(p.x * (1.1 + q.z) - t * (0.08 + q.w * 0.08)) * 0.22 - (flow - 0.5) * 0.20;
+  float forceChannel = band(channelLine, 0.10) * max(left, right);
+  float forceShear = band(channelLine + sin(p.x * 2.4 + t * 0.10) * 0.12, 0.045) * (0.45 + 0.55 * flow);
+  return vec4(left, right, forceChannel, forceShear);
 }
 
 vec4 filamentField(vec2 p, float t, vec4 q){

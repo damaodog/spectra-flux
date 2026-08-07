@@ -157,6 +157,30 @@ test("the shader exposes bounded material kernels", () => {
   );
 });
 
+test("the glow kernel keeps a narrow moving caustic ridge", () => {
+  assert.match(FRAGMENT_SHADER, /float glowRidge\s*=/);
+  assert.match(
+    FRAGMENT_SHADER,
+    /return vec4\(core, halo, glowRidge, haze \* halo\);/,
+  );
+});
+
+test("the gel kernel exposes moving translucent rims", () => {
+  assert.match(FRAGMENT_SHADER, /float gelRim\s*=/);
+  assert.match(
+    FRAGMENT_SHADER,
+    /return vec4\(g1, g2, gelRim, gelCore\);/,
+  );
+});
+
+test("the force kernel keeps a visible transverse channel", () => {
+  assert.match(FRAGMENT_SHADER, /float forceChannel\s*=/);
+  assert.match(
+    FRAGMENT_SHADER,
+    /return vec4\(left, right, forceChannel, forceShear\);/,
+  );
+});
+
 test("embed transfers kernel tuning to WebGL", () => {
   const html = buildEmbed({
     title: "SPECTRA",

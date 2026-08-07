@@ -120,6 +120,7 @@ function AtlasGallery({ configs, playing }: GalleryProps) {
 
       let tileWidth = 1;
       let tileHeight = 1;
+      let resizeFrame = 0;
 
       drawRef.current = (now) => {
         lastTimeRef.current = now;
@@ -172,23 +173,32 @@ function AtlasGallery({ configs, playing }: GalleryProps) {
           window.devicePixelRatio || 1,
           configs.length > 6 ? 1.5 : 2,
         );
-        tileWidth = Math.max(1, Math.round(box.width * ratio));
-        tileHeight = Math.max(1, Math.round(box.height * ratio));
-        source.width = tileWidth * ATLAS_COLUMNS;
-        source.height = tileHeight * ATLAS_ROWS;
+        const nextTileWidth = Math.max(1, Math.round(box.width * ratio));
+        const nextTileHeight = Math.max(1, Math.round(box.height * ratio));
+        if (tileWidth === nextTileWidth && tileHeight === nextTileHeight) return;
+        tileWidth = nextTileWidth;
+        tileHeight = nextTileHeight;
+        const nextSourceWidth = tileWidth * ATLAS_COLUMNS;
+        const nextSourceHeight = tileHeight * ATLAS_ROWS;
+        if (source.width !== nextSourceWidth) source.width = nextSourceWidth;
+        if (source.height !== nextSourceHeight) source.height = nextSourceHeight;
         targets.forEach((target) => {
-          target.width = tileWidth;
-          target.height = tileHeight;
+          if (target.width !== tileWidth) target.width = tileWidth;
+          if (target.height !== tileHeight) target.height = tileHeight;
         });
         drawRef.current?.(lastTimeRef.current);
       };
 
-      const observer = new ResizeObserver(resize);
-      targets.forEach((target) => observer.observe(target));
+      const observer = new ResizeObserver(() => {
+        cancelAnimationFrame(resizeFrame);
+        resizeFrame = requestAnimationFrame(resize);
+      });
+      observer.observe(targets[0]);
       resize();
 
       return () => {
         observer.disconnect();
+        cancelAnimationFrame(resizeFrame);
         gl.deleteProgram(program);
         gl.deleteShader(vertex);
         gl.deleteShader(fragment);
