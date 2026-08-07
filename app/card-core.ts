@@ -56,29 +56,55 @@ void main(){
   vec2 uv = gl_FragCoord.xy / resolution.xy;
   vec2 p = (uv - 0.5) * vec2(resolution.x / resolution.y, 1.0);
   float phase = seed * 0.013;
-  vec2 flowWarp = vec2(
-    sin(p.y * 4.2 + time * 1.15 + phase),
-    cos(p.x * 3.7 - time * 0.92 - phase)
+  vec2 smokeDrift = vec2(
+    sin(time * 0.42 + phase),
+    cos(time * 0.34 - phase)
   );
-  p += flowWarp * (0.055 + intensity * 0.07);
-  float drift = time * 0.22;
-  float fog = fbm(p * 2.7 + vec2(drift, -drift * 0.6));
-  float ripple = 0.5 + 0.5 * sin(
-    15.0 * length(p - vec2(sin(time * 0.18), cos(time * 0.15)) * 0.16)
-    - time * 1.4 + fog * 3.2
+  float fogA = fbm(p * 2.0 + smokeDrift * 0.32);
+  float fogB = fbm(p * 3.2 - smokeDrift.yx * 0.25 + vec2(7.3));
+  vec2 warped = p + vec2(fogA - 0.5, fogB - 0.5) * 0.34;
+  vec2 centerA = vec2(-0.32, 0.16) + smokeDrift * vec2(0.18, 0.10);
+  vec2 centerB = vec2(0.08, -0.18) + smokeDrift.yx * vec2(-0.13, 0.16);
+  vec2 centerC = vec2(0.45, 0.12) + vec2(
+    sin(time * 0.29 - phase),
+    cos(time * 0.37 + phase)
+  ) * 0.14;
+  vec2 centerD = vec2(0.28, -0.38) + vec2(
+    cos(time * 0.31 + phase),
+    sin(time * 0.27)
+  ) * 0.12;
+  float cloudA = 1.0 - smoothstep(
+    0.12,
+    0.62,
+    length((warped - centerA) * vec2(0.72, 1.0))
   );
-  float swell = 0.5 + 0.5 * sin(p.x * 5.0 + p.y * 3.0 - time * 1.1 + fog * 2.0);
-  float veins = smoothstep(0.45, 0.82, sin((p.x + fog * 0.42) * 22.0) * 0.5 + 0.5);
-  vec2 cell = floor((p + vec2(drift * 0.18, 0.0)) * 72.0);
-  float particles = smoothstep(0.982, 1.0, hash(cell));
-  float blend = clamp(
-    0.08 + fog * 0.54 + ripple * 0.17 * intensity + swell * 0.14 * intensity + veins * 0.07 * intensity + particles * 0.16,
+  float cloudB = 1.0 - smoothstep(
+    0.10,
+    0.56,
+    length((warped - centerB) * vec2(0.82, 1.0))
+  );
+  float cloudC = 1.0 - smoothstep(
+    0.08,
+    0.50,
+    length((warped - centerC) * vec2(0.76, 1.0))
+  );
+  float cloudD = 1.0 - smoothstep(
+    0.08,
+    0.46,
+    length((warped - centerD) * vec2(0.86, 1.0))
+  );
+  float smokeDensity = clamp(
+    (cloudA + cloudB + cloudC + cloudD) *
+      (0.42 + fogA * 0.38 + fogB * 0.20),
     0.0,
     1.0
   );
-  float reveal = smoothstep(-0.08, 0.54, uv.x + fog * 0.12);
-  vec3 color = mix(vec3(0.985), mix(colorA, colorB, blend), reveal);
-  color += particles * 0.08 * intensity;
+  float colorMix = clamp(0.18 + uv.y * 0.28 + fogB * 0.62, 0.0, 1.0);
+  vec3 smokeColor = mix(colorA, colorB, colorMix);
+  float leftFade = smoothstep(0.03, 0.46, uv.x + fogA * 0.08);
+  float opacity = smoothstep(0.04, 0.84, smokeDensity) *
+    leftFade * (0.68 + intensity * 0.32);
+  vec3 color = mix(vec3(0.985), smokeColor, opacity * 0.82);
   outColor = vec4(color, 1.0);
 }`;
 

@@ -34,7 +34,8 @@ test("buildEmbed escapes copy and has no network dependency", () => {
   assert.doesNotMatch(html, /https?:\/\//);
 });
 
-test("the shader applies a time-driven spatial warp", () => {
-  assert.match(FRAGMENT_SHADER, /vec2 flowWarp\s*=/);
-  assert.match(FRAGMENT_SHADER, /p \+= flowWarp/);
+test("the fragment shader renders smoke without mixed effects", () => {
+  assert.match(FRAGMENT_SHADER, /float smokeDensity\s*=/);
+  assert.match(FRAGMENT_SHADER, /vec2 smokeDrift\s*=/);
+  assert.doesNotMatch(FRAGMENT_SHADER, /ripple|particles|veins|grain/i);
 });
