@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 async function render() {
@@ -40,5 +41,23 @@ test("server-renders the WebGL card generator", async () => {
   assert.doesNotMatch(
     html,
     /codex-preview|react-loading-skeleton|Building your site/i,
+  );
+});
+
+test("the whole card lifts on precise-pointer hover and respects reduced motion", async () => {
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+
+  assert.match(css, /@media \(hover: hover\) and \(pointer: fine\)/);
+  assert.match(
+    css,
+    /\.preview-card:hover\s*\{[^}]*transform:\s*translateY\(-6px\) scale\(1\.015\)/s,
+  );
+  assert.match(
+    css,
+    /\.preview-card:hover\s*\{[^}]*box-shadow:/s,
+  );
+  assert.match(
+    css,
+    /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.preview-card:hover\s*\{\s*transform:\s*none;/,
   );
 });
