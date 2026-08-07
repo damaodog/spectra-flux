@@ -8,6 +8,7 @@ import {
   DEFAULT_CARD_WIDTH,
   FRAGMENT_SHADER,
   SMOKE_VARIANT_COUNT,
+  SMOKE_TIME_SCALE,
   toShaderSeed,
 } from "../app/card-core.ts";
 
@@ -34,6 +35,27 @@ test("shader seeds stay inside the precise 16-bit float range", () => {
   assert.equal(toShaderSeed(2674696568), 41336);
   assert.equal(toShaderSeed(4294967295), 65535);
   assert.equal(toShaderSeed(-1), 0);
+});
+
+test("smoke animation uses the shared five-times scale", () => {
+  assert.equal(SMOKE_TIME_SCALE, 5);
+
+  const html = buildEmbed({
+    title: "SPECTRA",
+    subtitle: "COLOR AS A LIVING SYSTEM.",
+    label: "STYLE 01",
+    colorA: "#64e0c1",
+    colorB: "#2778ff",
+    seed: 2026,
+    speed: 0.8,
+    intensity: 0.74,
+    radius: 54,
+    width: 400,
+    height: 100,
+    variant: 0,
+  });
+
+  assert.match(html, /now\*\.001\*0\.8\*5/);
 });
 
 test("buildEmbed escapes copy and has no network dependency", () => {

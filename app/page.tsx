@@ -8,6 +8,7 @@ import {
   DEFAULT_CARD_WIDTH,
   FRAGMENT_SHADER,
   hexToRgb,
+  SMOKE_TIME_SCALE,
   toShaderSeed,
   VERTEX_SHADER,
   type CardConfig,
@@ -121,7 +122,10 @@ function WebGLPreview({ config, playing }: PreviewProps) {
       drawRef.current = (now) => {
         const current = paramsRef.current;
         gl.uniform2f(uniforms.resolution, canvas.width, canvas.height);
-        gl.uniform1f(uniforms.time, now * 0.001 * current.speed);
+        gl.uniform1f(
+          uniforms.time,
+          now * 0.001 * current.speed * SMOKE_TIME_SCALE,
+        );
         gl.uniform1f(uniforms.seed, toShaderSeed(current.seed));
         gl.uniform1f(uniforms.intensity, current.intensity);
         gl.uniform1i(uniforms.variant, current.variant);

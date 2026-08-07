@@ -16,6 +16,7 @@ export type CardConfig = {
 export const DEFAULT_CARD_WIDTH = 400;
 export const DEFAULT_CARD_HEIGHT = 100;
 export const SMOKE_VARIANT_COUNT = 6;
+export const SMOKE_TIME_SCALE = 5;
 
 export const VERTEX_SHADER = `#version 300 es
 in vec2 position;
@@ -288,7 +289,7 @@ export function buildEmbed(config: CardConfig) {
     const resolution=gl.getUniformLocation(program,"resolution"),time=gl.getUniformLocation(program,"time"),seed=gl.getUniformLocation(program,"seed"),intensity=gl.getUniformLocation(program,"intensity"),variant=gl.getUniformLocation(program,"variant"),a=gl.getUniformLocation(program,"colorA"),b=gl.getUniformLocation(program,"colorB");
     const resize=()=>{const rect=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.max(1,Math.round(rect.width*dpr));canvas.height=Math.max(1,Math.round(rect.height*dpr));gl.viewport(0,0,canvas.width,canvas.height)};
     new ResizeObserver(resize).observe(canvas);resize();
-    const draw=(now=0)=>{gl.uniform2f(resolution,canvas.width,canvas.height);gl.uniform1f(time,now*.001*${speed});gl.uniform1f(seed,${seed}.0);gl.uniform1f(intensity,${intensity});gl.uniform1i(variant,${variantValue});gl.uniform3f(a,${aR},${aG},${aB});gl.uniform3f(b,${bR},${bG},${bB});gl.drawArrays(gl.TRIANGLE_STRIP,0,4)};
+    const draw=(now=0)=>{gl.uniform2f(resolution,canvas.width,canvas.height);gl.uniform1f(time,now*.001*${speed}*${SMOKE_TIME_SCALE});gl.uniform1f(seed,${seed}.0);gl.uniform1f(intensity,${intensity});gl.uniform1i(variant,${variantValue});gl.uniform3f(a,${aR},${aG},${aB});gl.uniform3f(b,${bR},${bG},${bB});gl.drawArrays(gl.TRIANGLE_STRIP,0,4)};
     let frame=0;const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
     const loop=(now)=>{if(!root.isConnected)return;draw(now);frame=requestAnimationFrame(loop)};
     const start=()=>{if(!frame&&!document.hidden&&!reduced)frame=requestAnimationFrame(loop)};
