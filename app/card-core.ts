@@ -25,6 +25,7 @@ void main(){ gl_Position = vec4(position, 0.0, 1.0); }`;
 export const FRAGMENT_SHADER = `#version 300 es
 precision highp float;
 uniform vec2 resolution;
+uniform vec2 viewportOrigin;
 uniform float time;
 uniform float seed;
 uniform float intensity;
@@ -66,7 +67,8 @@ vec2 vortexWarp(vec2 point, vec2 center, float spin, float falloff){
 }
 
 void main(){
-  vec2 uv = gl_FragCoord.xy / resolution.xy;
+  vec2 localFragCoord = gl_FragCoord.xy - viewportOrigin;
+  vec2 uv = localFragCoord / resolution.xy;
   vec2 p = (uv - 0.5) * vec2(resolution.x / resolution.y, 1.0);
   float phase = seed * 0.013;
   float flowTime = time;

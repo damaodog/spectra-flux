@@ -130,3 +130,12 @@ test("the shader exposes collision, interweaving, and vortex structures", () => 
   assert.match(FRAGMENT_SHADER, /variant\s*==\s*5/);
   assert.doesNotMatch(FRAGMENT_SHADER, /framebuffer|sampler2D|ripple|particles|veins|grain/i);
 });
+
+test("the fragment shader can render viewport-local atlas cells", () => {
+  assert.match(FRAGMENT_SHADER, /uniform vec2 viewportOrigin;/);
+  assert.match(
+    FRAGMENT_SHADER,
+    /vec2 localFragCoord\s*=\s*gl_FragCoord\.xy - viewportOrigin;/,
+  );
+  assert.match(FRAGMENT_SHADER, /vec2 uv\s*=\s*localFragCoord \/ resolution\.xy;/);
+});
