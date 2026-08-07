@@ -42,7 +42,7 @@ test("buildEmbed escapes copy and has no network dependency", () => {
     radius: 64,
     width: 1200,
     height: 420,
-    variant: 0,
+    variant: 1,
   };
 
   const html = buildEmbed(config);
@@ -50,6 +50,7 @@ test("buildEmbed escapes copy and has no network dependency", () => {
   assert.match(html, /&lt;SPECTRA&gt;/);
   assert.match(html, /getContext\("webgl2"/);
   assert.match(html, /2026/);
+  assert.match(html, /uniform1i\(variant,1\)/);
   assert.doesNotMatch(html, /https?:\/\//);
 });
 
@@ -57,4 +58,13 @@ test("the fragment shader renders smoke without mixed effects", () => {
   assert.match(FRAGMENT_SHADER, /float smokeDensity\s*=/);
   assert.match(FRAGMENT_SHADER, /vec2 smokeDrift\s*=/);
   assert.doesNotMatch(FRAGMENT_SHADER, /ripple|particles|veins|grain/i);
+});
+
+test("the shader has six variants and independent alpha layers", () => {
+  assert.match(FRAGMENT_SHADER, /uniform int variant;/);
+  assert.match(FRAGMENT_SHADER, /float layerAlphaA\s*=/);
+  assert.match(FRAGMENT_SHADER, /float layerAlphaB\s*=/);
+  assert.match(FRAGMENT_SHADER, /float overlapInk\s*=/);
+  assert.match(FRAGMENT_SHADER, /variant\s*==\s*5/);
+  assert.doesNotMatch(FRAGMENT_SHADER, /cloudColor\s*=/);
 });

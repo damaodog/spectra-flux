@@ -27,6 +27,7 @@ uniform vec2 resolution;
 uniform float time;
 uniform float seed;
 uniform float intensity;
+uniform int variant;
 uniform vec3 colorA;
 uniform vec3 colorB;
 out vec4 outColor;
@@ -68,6 +69,8 @@ void main(){
   float fogA = fbm(p * 2.0 + smokeDrift * 0.32);
   float fogB = fbm(p * 3.2 - smokeDrift.yx * 0.25 + vec2(7.3));
   vec2 warped = p + vec2(fogA - 0.5, fogB - 0.5) * 0.34;
+
+  vec2 shape = warped;
   vec2 centerA = vec2(-0.32, 0.16) + smokeDrift * vec2(0.18, 0.10);
   vec2 centerB = vec2(0.08, -0.18) + smokeDrift.yx * vec2(-0.13, 0.16);
   vec2 centerC = vec2(0.78, 0.12) + vec2(
@@ -78,41 +81,94 @@ void main(){
     cos(time * 0.31 + phase),
     sin(time * 0.27)
   ) * 0.12;
-  float cloudA = 1.0 - smoothstep(
-    0.12,
-    0.62,
-    length((warped - centerA) * vec2(0.72, 1.0))
-  );
-  float cloudB = 1.0 - smoothstep(
-    0.10,
-    0.56,
-    length((warped - centerB) * vec2(0.82, 1.0))
-  );
-  float cloudC = 1.0 - smoothstep(
-    0.10,
-    0.72,
-    length((warped - centerC) * vec2(0.56, 0.94))
-  );
-  float cloudD = 1.0 - smoothstep(
-    0.10,
-    0.68,
-    length((warped - centerD) * vec2(0.66, 0.94))
-  );
-  float cloudBody = max(max(cloudA, cloudB), max(cloudC, cloudD));
-  float smokeDensity = clamp(
-    cloudBody * (0.54 + fogA * 0.32 + fogB * 0.18),
-    0.0,
-    1.0
-  );
-  float cloudTotal = cloudA + cloudB + cloudC + cloudD + 0.001;
-  float cloudColor = (cloudA * 0.08 + cloudB * 0.34 +
-    cloudC * 0.88 + cloudD * 0.62) / cloudTotal;
-  float colorMix = clamp(cloudColor * 0.78 + uv.y * 0.10 + fogB * 0.18, 0.0, 1.0);
-  vec3 smokeColor = mix(colorA, colorB, colorMix);
-  float leftFade = smoothstep(0.03, 0.46, uv.x + fogA * 0.08);
-  float opacity = smoothstep(0.04, 0.84, smokeDensity) *
-    leftFade * (0.68 + intensity * 0.32);
-  vec3 color = mix(vec3(0.985), smokeColor, opacity * 0.82);
+  vec2 scaleA = vec2(0.72, 1.0);
+  vec2 scaleB = vec2(0.82, 1.0);
+  vec2 scaleC = vec2(0.56, 0.94);
+  vec2 scaleD = vec2(0.66, 0.94);
+  vec4 outer = vec4(0.62, 0.56, 0.72, 0.68);
+
+  if(variant == 1){
+    centerA = vec2(-0.08, 0.16) + smokeDrift * 0.12;
+    centerB = vec2(0.18, -0.10) - smokeDrift.yx * 0.10;
+    centerC = vec2(0.52, 0.18) + smokeDrift.yx * 0.11;
+    centerD = vec2(0.70, -0.16) - smokeDrift * 0.10;
+    scaleA = vec2(0.58, 0.90);
+    scaleB = vec2(0.62, 0.88);
+    scaleC = vec2(0.54, 0.86);
+    scaleD = vec2(0.58, 0.88);
+    outer = vec4(0.76, 0.72, 0.78, 0.74);
+  }
+  if(variant == 2){
+    shape = vec2(
+      warped.x + sin(warped.y * 3.8 + time * 0.24 + phase) * 0.16,
+      warped.y
+    );
+    centerA = vec2(-0.10, 0.40);
+    centerB = vec2(0.18, 0.14);
+    centerC = vec2(0.55, -0.12);
+    centerD = vec2(0.88, -0.38);
+    scaleA = scaleB = scaleC = scaleD = vec2(0.46, 1.72);
+    outer = vec4(0.58, 0.56, 0.60, 0.58);
+  }
+  if(variant == 3){
+    shape += normalize(shape + vec2(0.001)) * (fogB - 0.5) * 0.30;
+    centerA = vec2(-0.02, 0.08) + smokeDrift * 0.10;
+    centerB = vec2(0.28, -0.14) - smokeDrift.yx * 0.10;
+    centerC = vec2(0.58, 0.22) + smokeDrift.yx * 0.12;
+    centerD = vec2(0.82, -0.20) - smokeDrift * 0.08;
+    scaleA = vec2(0.82, 0.82);
+    scaleB = vec2(0.74, 0.78);
+    scaleC = vec2(0.68, 0.72);
+    scaleD = vec2(0.72, 0.76);
+    outer = vec4(0.70, 0.58, 0.66, 0.54);
+  }
+  if(variant == 4){
+    shape = mat2(0.94, -0.34, 0.34, 0.94) * warped;
+    centerA = vec2(-0.20, 0.34) + smokeDrift * 0.10;
+    centerB = vec2(0.12, 0.08) - smokeDrift.yx * 0.11;
+    centerC = vec2(0.48, -0.16) + smokeDrift * 0.12;
+    centerD = vec2(0.84, -0.38) - smokeDrift.yx * 0.10;
+    scaleA = scaleB = scaleC = scaleD = vec2(0.58, 1.10);
+    outer = vec4(0.66, 0.62, 0.70, 0.66);
+  }
+  if(variant == 5){
+    shape = warped + vec2((fogA - 0.5) * 0.42, (fogB - 0.5) * 0.18);
+    centerA = vec2(-0.08, 0.06) + smokeDrift * 0.06;
+    centerB = vec2(0.62, -0.02) - smokeDrift.yx * 0.07;
+    centerC = vec2(0.38, 0.30) + smokeDrift.yx * 0.16;
+    centerD = vec2(0.84, -0.30) - smokeDrift * 0.14;
+    scaleA = vec2(0.38, 0.66);
+    scaleB = vec2(0.42, 0.70);
+    scaleC = vec2(0.92, 1.18);
+    scaleD = vec2(0.86, 1.12);
+    outer = vec4(0.92, 0.88, 0.52, 0.48);
+  }
+
+  float cloudA = 1.0 - smoothstep(0.08, outer.x, length((shape - centerA) * scaleA));
+  float cloudB = 1.0 - smoothstep(0.08, outer.y, length((shape - centerB) * scaleB));
+  float cloudC = 1.0 - smoothstep(0.08, outer.z, length((shape - centerC) * scaleC));
+  float cloudD = 1.0 - smoothstep(0.08, outer.w, length((shape - centerD) * scaleD));
+
+  float leftFade = smoothstep(0.01, 0.34, uv.x + fogA * 0.08);
+  float layerAlphaA = smoothstep(0.02, 0.82, cloudA) * leftFade * (0.74 + fogA * 0.26);
+  float layerAlphaB = smoothstep(0.02, 0.82, cloudB) * leftFade * (0.72 + fogB * 0.28);
+  float layerAlphaC = smoothstep(0.02, 0.82, cloudC) * leftFade * (0.76 + fogB * 0.24);
+  float layerAlphaD = smoothstep(0.02, 0.82, cloudD) * leftFade * (0.74 + fogA * 0.26);
+  float smokeDensity = max(max(layerAlphaA, layerAlphaB), max(layerAlphaC, layerAlphaD));
+  float strength = (variant == 1 ? 0.56 : 0.44) + intensity * 0.30;
+
+  vec3 color = vec3(0.985);
+  color = mix(color, colorA, layerAlphaA * strength);
+  color = mix(color, colorB, layerAlphaB * strength);
+  color = mix(color, mix(colorA, colorB, 0.30), layerAlphaC * strength * 0.84);
+  color = mix(color, mix(colorA, colorB, 0.72), layerAlphaD * strength * 0.80);
+  float overlapInk = min(layerAlphaA + layerAlphaC, layerAlphaB + layerAlphaD);
+  float inkBoost = variant == 1 ? 0.34 : 0.12;
+  vec3 inkColor = mix(colorA, colorB, 0.50);
+  float inkLight = dot(inkColor, vec3(0.299, 0.587, 0.114));
+  inkColor = clamp(mix(vec3(inkLight), inkColor, 1.30), 0.0, 1.0);
+  color = mix(color, inkColor, clamp(overlapInk * inkBoost, 0.0, 0.36));
+  color = mix(vec3(0.985), color, 0.88 + smokeDensity * 0.12);
   outColor = vec4(color, 1.0);
 }`;
 
@@ -189,6 +245,7 @@ export function buildEmbed(config: CardConfig) {
   const radius = clamp(config.radius, 24, 96);
   const width = clamp(config.width, 480, 1600);
   const height = clamp(config.height, 220, 900);
+  const variantValue = Math.trunc(clamp(config.variant, 0, SMOKE_VARIANT_COUNT - 1));
   const vertex = JSON.stringify(VERTEX_SHADER);
   const fragment = JSON.stringify(FRAGMENT_SHADER);
 
@@ -226,10 +283,10 @@ export function buildEmbed(config: CardConfig) {
     gl.useProgram(program);
     const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
     const position=gl.getAttribLocation(program,"position");gl.enableVertexAttribArray(position);gl.vertexAttribPointer(position,2,gl.FLOAT,false,0,0);
-    const resolution=gl.getUniformLocation(program,"resolution"),time=gl.getUniformLocation(program,"time"),seed=gl.getUniformLocation(program,"seed"),intensity=gl.getUniformLocation(program,"intensity"),a=gl.getUniformLocation(program,"colorA"),b=gl.getUniformLocation(program,"colorB");
+    const resolution=gl.getUniformLocation(program,"resolution"),time=gl.getUniformLocation(program,"time"),seed=gl.getUniformLocation(program,"seed"),intensity=gl.getUniformLocation(program,"intensity"),variant=gl.getUniformLocation(program,"variant"),a=gl.getUniformLocation(program,"colorA"),b=gl.getUniformLocation(program,"colorB");
     const resize=()=>{const rect=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.max(1,Math.round(rect.width*dpr));canvas.height=Math.max(1,Math.round(rect.height*dpr));gl.viewport(0,0,canvas.width,canvas.height)};
     new ResizeObserver(resize).observe(canvas);resize();
-    const draw=(now=0)=>{gl.uniform2f(resolution,canvas.width,canvas.height);gl.uniform1f(time,now*.001*${speed});gl.uniform1f(seed,${seed}.0);gl.uniform1f(intensity,${intensity});gl.uniform3f(a,${aR},${aG},${aB});gl.uniform3f(b,${bR},${bG},${bB});gl.drawArrays(gl.TRIANGLE_STRIP,0,4)};
+    const draw=(now=0)=>{gl.uniform2f(resolution,canvas.width,canvas.height);gl.uniform1f(time,now*.001*${speed});gl.uniform1f(seed,${seed}.0);gl.uniform1f(intensity,${intensity});gl.uniform1i(variant,${variantValue});gl.uniform3f(a,${aR},${aG},${aB});gl.uniform3f(b,${bR},${bG},${bB});gl.drawArrays(gl.TRIANGLE_STRIP,0,4)};
     let frame=0;const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
     const loop=(now)=>{if(!root.isConnected)return;draw(now);frame=requestAnimationFrame(loop)};
     const start=()=>{if(!frame&&!document.hidden&&!reduced)frame=requestAnimationFrame(loop)};

@@ -93,6 +93,7 @@ function WebGLPreview({ config, playing, onError }: PreviewProps) {
         time: gl.getUniformLocation(program, "time"),
         seed: gl.getUniformLocation(program, "seed"),
         intensity: gl.getUniformLocation(program, "intensity"),
+        variant: gl.getUniformLocation(program, "variant"),
         colorA: gl.getUniformLocation(program, "colorA"),
         colorB: gl.getUniformLocation(program, "colorB"),
       };
@@ -114,6 +115,7 @@ function WebGLPreview({ config, playing, onError }: PreviewProps) {
         gl.uniform1f(uniforms.time, now * 0.001 * current.speed);
         gl.uniform1f(uniforms.seed, current.seed);
         gl.uniform1f(uniforms.intensity, current.intensity);
+        gl.uniform1i(uniforms.variant, current.variant);
         gl.uniform3fv(uniforms.colorA, colorA);
         gl.uniform3fv(uniforms.colorB, colorB);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
