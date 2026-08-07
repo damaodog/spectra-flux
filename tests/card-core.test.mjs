@@ -91,14 +91,21 @@ test("the fragment shader renders smoke without mixed effects", () => {
   assert.doesNotMatch(FRAGMENT_SHADER, /ripple|particles|veins|grain/i);
 });
 
-test("the shader separates fast flow from long travel without extra FBM work", () => {
+test("the shader keeps fast flow and limits the third field to weave variants", () => {
   assert.match(FRAGMENT_SHADER, /float flowTime\s*=\s*time;/);
   assert.match(FRAGMENT_SHADER, /float travelTime\s*=\s*time \* 0\.025;/);
   assert.match(FRAGMENT_SHADER, /vec2 flowDrift\s*=/);
   assert.match(FRAGMENT_SHADER, /vec2 travelDrift\s*=/);
   assert.match(FRAGMENT_SHADER, /vec2 macroDrift\s*=\s*travelDrift \* 1\.8;/);
   assert.match(FRAGMENT_SHADER, /float horizontalScale\s*=\s*1\.0 \/ 1\.4;/);
-  assert.equal((FRAGMENT_SHADER.match(/= fbm\(/g) || []).length, 2);
+  assert.match(FRAGMENT_SHADER, /bool collisionFamily\s*=\s*variant < 2;/);
+  assert.match(FRAGMENT_SHADER, /bool weaveFamily\s*=\s*variant >= 2 && variant < 4;/);
+  assert.match(FRAGMENT_SHADER, /bool vortexFamily\s*=\s*variant >= 4;/);
+  assert.match(
+    FRAGMENT_SHADER,
+    /if\(weaveFamily\)\{\s*fogC = fbm\(/,
+  );
+  assert.equal((FRAGMENT_SHADER.match(/= fbm\(/g) || []).length, 3);
 });
 
 test("fast smoke flow advects forward instead of returning every two seconds", () => {
@@ -112,11 +119,14 @@ test("fast smoke flow advects forward instead of returning every two seconds", (
   );
 });
 
-test("the shader has six variants and independent alpha layers", () => {
-  assert.match(FRAGMENT_SHADER, /uniform int variant;/);
+test("the shader exposes collision, interweaving, and vortex structures", () => {
+  assert.match(FRAGMENT_SHADER, /vec2 vortexWarp\s*\(/);
+  assert.match(FRAGMENT_SHADER, /float collisionMask\s*=/);
+  assert.match(FRAGMENT_SHADER, /float fusionMask\s*=/);
+  assert.match(FRAGMENT_SHADER, /float pairwiseWeave\s*=/);
+  assert.match(FRAGMENT_SHADER, /float threeWayWeave\s*=/);
   assert.match(FRAGMENT_SHADER, /float layerAlphaA\s*=/);
   assert.match(FRAGMENT_SHADER, /float layerAlphaB\s*=/);
-  assert.match(FRAGMENT_SHADER, /float overlapInk\s*=/);
   assert.match(FRAGMENT_SHADER, /variant\s*==\s*5/);
-  assert.doesNotMatch(FRAGMENT_SHADER, /cloudColor\s*=/);
+  assert.doesNotMatch(FRAGMENT_SHADER, /framebuffer|sampler2D|ripple|particles|veins|grain/i);
 });

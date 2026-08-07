@@ -59,6 +59,12 @@ float fbm(vec2 p){
   return value;
 }
 
+vec2 vortexWarp(vec2 point, vec2 center, float spin, float falloff){
+  vec2 delta = point - center;
+  float influence = exp(-dot(delta, delta) * falloff);
+  return vec2(-delta.y, delta.x) * spin * influence;
+}
+
 void main(){
   vec2 uv = gl_FragCoord.xy / resolution.xy;
   vec2 p = (uv - 0.5) * vec2(resolution.x / resolution.y, 1.0);
@@ -74,8 +80,15 @@ void main(){
     cos(travelTime * 0.83 - phase)
   );
   vec2 macroDrift = travelDrift * 1.8;
+  bool collisionFamily = variant < 2;
+  bool weaveFamily = variant >= 2 && variant < 4;
+  bool vortexFamily = variant >= 4;
   float fogA = fbm(p * 2.0 + flowDrift);
   float fogB = fbm(p * 3.2 + vec2(-flowDrift.y, flowDrift.x) * 0.82 + vec2(7.3));
+  float fogC = 0.5;
+  if(weaveFamily){
+    fogC = fbm(p * 4.1 + vec2(-flowDrift.x * 0.68, flowDrift.y * 0.92) + vec2(13.7, 4.9));
+  }
   vec2 warped = p + vec2(fogA - 0.5, fogB - 0.5) * 0.34;
 
   vec2 shape = warped;
@@ -146,6 +159,24 @@ void main(){
     outer = vec4(0.92, 0.88, 0.52, 0.48);
   }
 
+  if(collisionFamily){
+    float impact = fogA - fogB;
+    shape += vec2(impact * (variant == 0 ? 0.42 : 0.30), (fogA + fogB - 1.0) * 0.18);
+  }
+  if(weaveFamily){
+    vec2 braid = vec2(fogC - fogB, fogA - fogC);
+    shape += braid * (variant == 2 ? 0.34 : 0.43);
+  }
+  if(vortexFamily){
+    vec2 primaryCenter = variant == 4 ? vec2(0.20, 0.02) : vec2(0.44, 0.08);
+    vec2 vortexFlow = vortexWarp(shape, primaryCenter, 0.82 + fogA * 0.34, 0.72);
+    if(variant == 5){
+      vortexFlow += vortexWarp(shape, vec2(0.92, -0.20), -0.72 - fogB * 0.28, 1.05);
+      vortexFlow += vortexWarp(shape, vec2(-0.18, 0.28), 0.44, 1.30);
+    }
+    shape += vortexFlow + vec2(fogA - fogB, fogB - 0.5) * 0.16;
+  }
+
   float horizontalScale = 1.0 / 1.4;
   scaleA.x *= horizontalScale;
   scaleB.x *= horizontalScale;
@@ -158,24 +189,47 @@ void main(){
   float cloudD = 1.0 - smoothstep(0.08, outer.w, length((shape - centerD) * scaleD));
 
   float leftFade = smoothstep(0.01, 0.34, uv.x + fogA * 0.08);
+  float detailC = weaveFamily ? fogC : fogB;
   float layerAlphaA = smoothstep(0.02, 0.82, cloudA) * leftFade * (0.74 + fogA * 0.26);
   float layerAlphaB = smoothstep(0.02, 0.82, cloudB) * leftFade * (0.72 + fogB * 0.28);
-  float layerAlphaC = smoothstep(0.02, 0.82, cloudC) * leftFade * (0.76 + fogB * 0.24);
-  float layerAlphaD = smoothstep(0.02, 0.82, cloudD) * leftFade * (0.74 + fogA * 0.26);
+  float layerAlphaC = smoothstep(0.02, 0.82, cloudC) * leftFade * (0.76 + detailC * 0.24);
+  float layerAlphaD = smoothstep(0.02, 0.82, cloudD) * leftFade * (0.74 + mix(fogA, detailC, 0.5) * 0.26);
   float smokeDensity = max(max(layerAlphaA, layerAlphaB), max(layerAlphaC, layerAlphaD));
-  float strength = (variant == 1 ? 0.56 : 0.44) + intensity * 0.30;
+  float strength = (collisionFamily ? 0.60 : 0.48) + intensity * 0.30;
 
   vec3 color = vec3(0.985);
   color = mix(color, colorA, layerAlphaA * strength);
   color = mix(color, colorB, layerAlphaB * strength);
-  color = mix(color, mix(colorA, colorB, 0.30), layerAlphaC * strength * 0.84);
-  color = mix(color, mix(colorA, colorB, 0.72), layerAlphaD * strength * 0.80);
-  float overlapInk = min(layerAlphaA + layerAlphaC, layerAlphaB + layerAlphaD);
-  float inkBoost = variant == 1 ? 0.34 : 0.12;
-  vec3 inkColor = mix(colorA, colorB, 0.50);
-  float inkLight = dot(inkColor, vec3(0.299, 0.587, 0.114));
-  inkColor = clamp(mix(vec3(inkLight), inkColor, 1.30), 0.0, 1.0);
-  color = mix(color, inkColor, clamp(overlapInk * inkBoost, 0.0, 0.36));
+  color = mix(color, mix(colorA, colorB, 0.30), layerAlphaC * strength * 0.88);
+  color = mix(color, mix(colorA, colorB, 0.72), layerAlphaD * strength * 0.84);
+
+  float fieldA = max(layerAlphaA, layerAlphaC);
+  float fieldB = max(layerAlphaB, layerAlphaD);
+  float overlapInk = min(fieldA, fieldB);
+  float collisionMask = smoothstep(0.12, 0.68, overlapInk);
+  float fusionMask = (1.0 - smoothstep(0.02, 0.26, abs(fieldA - fieldB))) * smokeDensity;
+  float pairwiseWeave = max(min(layerAlphaA, layerAlphaB), max(min(layerAlphaB, layerAlphaC), min(layerAlphaC, layerAlphaA)));
+  float threeWayWeave = min(layerAlphaA, min(layerAlphaB, layerAlphaC));
+
+  vec3 mixedInk = mix(colorA, colorB, 0.50);
+  float mixedLight = dot(mixedInk, vec3(0.299, 0.587, 0.114));
+  vec3 collisionInk = clamp(mix(vec3(mixedLight * 0.78), mixedInk, 1.42), 0.0, 1.0);
+
+  if(collisionFamily){
+    color = mix(color, mix(colorA, colorB, 0.50 + (fogA - fogB) * 0.18), fusionMask * 0.20);
+    color = mix(color, collisionInk, collisionMask * (0.22 + intensity * 0.26));
+  }
+  if(weaveFamily){
+    vec3 braidColor = mix(mix(colorA, colorB, fogC), collisionInk, 0.22);
+    color = mix(color, braidColor, pairwiseWeave * 0.20);
+    color = mix(color, collisionInk * 0.88, threeWayWeave * (0.20 + intensity * 0.16));
+  }
+  if(vortexFamily){
+    float filament = smoothstep(0.12, 0.62, abs(fogA - fogB)) * smokeDensity;
+    color = mix(color, mix(colorA, colorB, fogA), filament * 0.16);
+    color = mix(color, collisionInk, collisionMask * 0.18);
+  }
+
   color = mix(vec3(0.985), color, 0.88 + smokeDensity * 0.12);
   outColor = vec4(color, 1.0);
 }`;
