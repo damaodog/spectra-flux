@@ -1,100 +1,61 @@
-# vinext-starter
+# SPECTRA FLUX
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+> 72 种 WebGL 生成式动态卡片图谱，探索雾、光学、流体、晶体、电磁与引力。
 
-## Prerequisites
+![SPECTRA FLUX 页面预览](docs/images/spectra-flux-preview.png)
 
-- Node.js `>=22.13.0`
+SPECTRA FLUX 是一个运行在浏览器中的生成式动态视觉实验。每张卡片以相同的极简白色载体呈现不同的色彩运动：烟雾交叠、光学折射、流体碰撞、晶体生长、电磁脉冲与天体引力。
 
-## Quick Start
+项目共收录 72 种动态，每页展示 12 张卡片。点击“一键全部随机”可以同时更新全部配色与细节，也可随时暂停、播放或恢复默认状态。
+
+## 六组动态
+
+| 编号 | 主题 | 视觉关键词 |
+| --- | --- | --- |
+| 01–12 | 雾与薄纱 | 扩散、漂移、交叠、呼吸 |
+| 13–24 | 光学材质 | 油膜、折射、棱镜、虹彩 |
+| 25–36 | 流体力场 | 涡旋、撞击、剪切、坍缩 |
+| 37–48 | 晶体生长 | 晶核、枝晶、棱面、裂隙 |
+| 49–60 | 电磁脉冲 | 磁极、电弧、场线、放电 |
+| 61–72 | 天体引力 | 轨道、星云、吸积、引力透镜 |
+
+## 特点
+
+- 72 种确定性的 WebGL 动态结构
+- 一键随机全部配色与视觉细节
+- 暂停、播放、重置和六页快速切换
+- 卡片悬停上浮与阴影反馈
+- 桌面双列、窄屏单列的响应式布局
+- 明亮、半透明、柔和的 SPECTRA 视觉体系
+
+## 性能结构
+
+当前页面始终只渲染 12 张卡片。12 个可见的 2D canvas 共用一个 WebGL2 context 和一个 2 × 6 atlas，再将 atlas 对应区域复制到各张卡片，因此目录扩展到 72 种后仍保持稳定负载。
+
+## 技术栈
+
+- React 19
+- TypeScript
+- WebGL2 / GLSL
+- Vinext / Vite
+- Node.js 22+
+
+## 本地运行
 
 ```bash
 npm install
 npm run dev
-npm run build
 ```
 
-This starter does not use `wrangler.jsonc`.
+打开 [http://localhost:3000/](http://localhost:3000/) 即可查看。
 
-## Included Shape
+生产构建与测试：
 
-- edit site code under `app/`
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
-
-## Workspace Auth Headers
-
-Signed-in visitors receive both `oai-authenticated-user-id` and `oai-authenticated-user-email`. Private Sites require every visitor to sign in; public Sites may also have anonymous visitors, for whom neither header is present.
-
-The user ID is stable for the same user on the same Site and different across Sites. Email and name are intended for display or contact purposes.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const userId = requestHeaders.get("oai-authenticated-user-id");
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
+```bash
+npm run lint
+npm test
 ```
 
-## Optional Dispatch-Owned ChatGPT Sign-In
+## 项目状态
 
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
-
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
-
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
-
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
-
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
-
-## Useful Commands
-
-- `npm run dev`: start local development
-- `npm run build`: verify the vinext build output
-- `npm test`: build the starter and verify its rendered loading skeleton
-- `npm run db:generate`: generate Drizzle migrations after schema changes
-
-## Learn More
-
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+当前为 72 种动态最终版本。所有页面、随机与播放控制、响应式布局及 WebGL shader 均已完成自动测试和浏览器验证。
