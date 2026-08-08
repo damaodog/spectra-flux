@@ -197,6 +197,16 @@ test("the shader exposes bounded material kernels", () => {
   );
 });
 
+test("the V2 veil chapter exposes seam braid wake and fold fields", () => {
+  ["seamField", "braidField", "wakeField", "foldField"].forEach((name) => {
+    assert.match(FRAGMENT_SHADER, new RegExp(`vec4 ${name}\\(`));
+  });
+  assert.match(FRAGMENT_SHADER, /if\(kernel == 13\) materialFields = seamField/);
+  assert.match(FRAGMENT_SHADER, /if\(kernel == 14\) materialFields = braidField/);
+  assert.match(FRAGMENT_SHADER, /if\(kernel == 15\) materialFields = wakeField/);
+  assert.match(FRAGMENT_SHADER, /if\(kernel == 16\) materialFields = foldField/);
+});
+
 test("the glow kernel keeps a narrow moving caustic ridge", () => {
   assert.match(FRAGMENT_SHADER, /float glowRidge\s*=/);
   assert.match(

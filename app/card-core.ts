@@ -77,6 +77,47 @@ float band(float value, float width){
   return 1.0 - smoothstep(width, width + 0.34, abs(value));
 }
 
+float softLine(float value, float width, float feather){
+  return 1.0 - smoothstep(width, width + feather, abs(value));
+}
+
+vec4 seamField(vec2 p, float t, vec4 q){
+  float n = fbm(p * vec2(0.72, 3.2 + q.x) + vec2(t * 0.08, -t * 0.04));
+  float seam = p.y - sin(p.x * (1.0 + q.x) - t * 0.14) * 0.16 - (n - 0.5) * 0.28;
+  float pulse = 0.5 + 0.5 * sin(t * (0.10 + q.w * 0.08));
+  float upper = softLine(seam - mix(0.30, 0.10, pulse), 0.11, 0.22);
+  float lower = softLine(seam + mix(0.28, 0.08, pulse), 0.11, 0.22);
+  float collision = softLine(seam, 0.035, 0.08);
+  return vec4(upper, lower, collision, collision * (0.45 + 0.55 * n));
+}
+
+vec4 braidField(vec2 p, float t, vec4 q){
+  float n = fbm(p * vec2(0.82, 3.8) + vec2(t * 0.09, -t * 0.04));
+  float a = p.y - sin(p.x * (1.2 + q.x) - t * 0.16) * 0.22 - (n - 0.5) * 0.18;
+  float b = p.y - sin(p.x * (1.7 + q.y) + t * 0.11 + 2.1) * 0.20 + (n - 0.5) * 0.16;
+  float c = p.y - sin(p.x * (2.1 + q.z) - t * 0.08 + 4.2) * 0.15;
+  return vec4(softLine(a, 0.08, 0.18), softLine(b, 0.08, 0.18), softLine(c, 0.045, 0.10), softLine(a - b, 0.04, 0.10));
+}
+
+vec4 wakeField(vec2 p, float t, vec4 q){
+  float n = fbm(p * vec2(0.64, 4.2) + vec2(t * 0.16, -t * 0.06));
+  float coreLine = p.y - sin(p.x * (1.4 + q.x) - t * 0.28) * 0.13 - (n - 0.5) * 0.16;
+  float direction = sign(q.y == 0.0 ? 1.0 : q.y);
+  float upperWake = coreLine - 0.20 - direction * sin(p.x * 2.2 - t * 0.11) * 0.10;
+  float lowerWake = coreLine + 0.22 + direction * sin(p.x * 1.8 + t * 0.09) * 0.09;
+  return vec4(softLine(coreLine, 0.05, 0.11), softLine(upperWake, 0.10, 0.20), softLine(lowerWake, 0.10, 0.20), softLine(upperWake + lowerWake, 0.05, 0.13));
+}
+
+vec4 foldField(vec2 p, float t, vec4 q){
+  float n = fbm(p * vec2(0.70, 3.0 + q.y) + vec2(t * 0.07, -t * 0.05));
+  float breath = 0.5 + 0.5 * sin(t * (0.07 + q.w * 0.05));
+  float fold = p.y - sin(p.x * (1.0 + q.x) - t * 0.12) * mix(0.30, 0.12, breath) - (n - 0.5) * 0.24;
+  float crest = softLine(fold, 0.035, 0.08);
+  float face = softLine(fold - mix(0.34, 0.12, breath), 0.14, 0.24);
+  float returnFace = softLine(fold + mix(0.30, 0.10, breath), 0.12, 0.22);
+  return vec4(face, returnFace, crest, max(face, returnFace) * (0.42 + n * 0.58));
+}
+
 vec4 veilField(vec2 p, float t, vec4 q){
   float n1 = fbm(p * vec2(0.72, 3.2 + q.x) + vec2(t * 0.10, -t * 0.05));
   float n2 = fbm(p * vec2(0.94, 4.4 + q.z) + vec2(-t * 0.08, t * 0.04) + 7.0);
@@ -223,6 +264,10 @@ void main(){
   if(kernel == 10) materialFields = interferenceField(p, flowTime, studyParams);
   if(kernel == 11) materialFields = forceField(p, flowTime, studyParams);
   if(kernel == 12) materialFields = filamentField(p, flowTime, studyParams);
+  if(kernel == 13) materialFields = seamField(p, flowTime, studyParams);
+  if(kernel == 14) materialFields = braidField(p, flowTime, studyParams);
+  if(kernel == 15) materialFields = wakeField(p, flowTime, studyParams);
+  if(kernel == 16) materialFields = foldField(p, flowTime, studyParams);
 
   vec2 shape = warped;
   vec2 centerA = vec2(-0.32, 0.16) + macroDrift * vec2(0.18, 0.10);
@@ -569,7 +614,7 @@ export function buildEmbed(config: CardConfig) {
   const width = clamp(config.width, 480, 1600);
   const height = clamp(config.height, 220, 900);
   const variantValue = Math.trunc(clamp(config.variant, 0, SMOKE_VARIANT_COUNT - 1));
-  const kernelValue = Math.trunc(clamp(config.kernel, 0, 12));
+  const kernelValue = Math.trunc(clamp(config.kernel, 0, 26));
   const params = config.params.map((value) => clamp(value, -2, 2));
   const vertex = JSON.stringify(VERTEX_SHADER);
   const fragment = JSON.stringify(FRAGMENT_SHADER);
