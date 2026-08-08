@@ -277,6 +277,21 @@ test("the crystal chapter exposes six structural growth fields", () => {
   assert.match(FRAGMENT_SHADER, /bool crystalKernel = kernel >= 27 && kernel <= 32;/);
 });
 
+test("the electromagnetic chapter exposes six energetic field structures", () => {
+  [
+    "dipoleCollisionField",
+    "arcJumpField",
+    "fieldLineField",
+    "pulseBurstField",
+    "plasmaJetField",
+    "chargeDiffuseField",
+  ].forEach((name) => assert.match(FRAGMENT_SHADER, new RegExp(`vec4 ${name}\\(`)));
+  [33, 34, 35, 36, 37, 38].forEach((kernel) => {
+    assert.match(FRAGMENT_SHADER, new RegExp(`if\\(kernel == ${kernel}\\)`));
+  });
+  assert.match(FRAGMENT_SHADER, /bool electromagneticKernel = kernel >= 33 && kernel <= 38;/);
+});
+
 test("the glow kernel keeps a narrow moving caustic ridge", () => {
   assert.match(FRAGMENT_SHADER, /float glowRidge\s*=/);
   assert.match(

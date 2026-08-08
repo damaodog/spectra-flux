@@ -403,6 +403,83 @@ vec4 fractureGlowField(vec2 p, float t, vec4 q){
   return vec4(smoothstep(0.30, 0.72, stoneA), smoothstep(0.32, 0.70, stoneB), max(mainCrack, max(forkA, forkB)), mainCrack * flare);
 }
 
+vec4 dipoleCollisionField(vec2 p, float t, vec4 q){
+  float collisionCycle = 0.5 + 0.5 * sin(t * (0.11 + q.w * 0.04));
+  float spacing = mix(0.78, 0.18, collisionCycle);
+  vec2 left = p - vec2(-spacing, sin(t * 0.07) * 0.10);
+  vec2 right = p - vec2(spacing, -sin(t * 0.07) * 0.10);
+  float leftRadius = length(left * vec2(0.66, 1.0));
+  float rightRadius = length(right * vec2(0.66, 1.0));
+  float leftPole = 1.0 - smoothstep(0.18, 0.76, leftRadius);
+  float rightPole = 1.0 - smoothstep(0.18, 0.76, rightRadius);
+  float fieldPhase = atan(left.y, left.x) - atan(right.y, right.x);
+  float fieldLines = softLine(sin(fieldPhase * (2.5 + q.x) + t * 0.16), 0.035, 0.12) * max(leftPole, rightPole);
+  float impact = softLine(leftRadius - rightRadius, 0.028, 0.075) * smoothstep(0.56, 0.98, collisionCycle);
+  return vec4(leftPole, rightPole, max(fieldLines, impact), impact * (0.55 + 0.45 * fieldLines));
+}
+
+vec4 arcJumpField(vec2 p, float t, vec4 q){
+  float jitterA = fbm(vec2(p.x * (2.8 + q.x), t * 0.12)) - 0.5;
+  float jitterB = fbm(vec2(p.x * (3.6 + q.z), -t * 0.10) + 9.0) - 0.5;
+  float arcAPath = p.y - jitterA * 0.46 - sin(p.x * 4.2 - t * 0.42) * 0.08;
+  float arcBPath = p.y + jitterB * 0.38 + cos(p.x * 3.5 + t * 0.34) * 0.10;
+  float gateA = smoothstep(-1.36, -0.92, p.x) * (1.0 - smoothstep(0.92, 1.36, p.x));
+  float arcA = softLine(arcAPath, 0.012, 0.042) * gateA;
+  float arcB = softLine(arcBPath, 0.014, 0.050) * gateA;
+  float nodePattern = abs(fract((p.x + 1.5) * (1.8 + q.y) - t * 0.16) - 0.5);
+  float jumpNodes = softLine(nodePattern - 0.02, 0.025, 0.08) * max(arcA, arcB);
+  float flash = max(arcA, arcB) * (0.62 + 0.38 * sin(t * 0.72 + p.x * 5.0));
+  return vec4(arcA * 0.82, arcB * 0.82, max(arcA, arcB), max(jumpNodes, flash));
+}
+
+vec4 fieldLineField(vec2 p, float t, vec4 q){
+  vec2 left = p - vec2(-0.56 + sin(t * 0.055) * 0.12, 0.0);
+  vec2 right = p - vec2(0.56 - cos(t * 0.052) * 0.12, 0.0);
+  float leftRadius = length(left);
+  float rightRadius = length(right);
+  float angleDifference = atan(left.y, left.x) - atan(right.y, right.x);
+  float flux = angleDifference * (2.2 + q.x) + (leftRadius - rightRadius) * (4.0 + q.z) - t * 0.14;
+  float linesA = softLine(sin(flux), 0.035, 0.12);
+  float linesB = softLine(cos(flux * 0.74 + t * 0.10), 0.035, 0.13);
+  float envelope = 1.0 - smoothstep(0.72, 1.82, leftRadius + rightRadius);
+  float braid = softLine(sin(flux * 1.8 + p.y * 3.0), 0.025, 0.085) * envelope;
+  return vec4(linesA * envelope, linesB * envelope, braid, min(linesA, linesB) * envelope);
+}
+
+vec4 pulseBurstField(vec2 p, float t, vec4 q){
+  vec2 center = vec2(sin(t * 0.062) * 0.30, cos(t * 0.047) * 0.08);
+  float radius = length((p - center) * vec2(0.68, 1.0));
+  float cycle = fract(t * (0.035 + q.w * 0.018));
+  float ringA = softLine(radius - mix(0.10, 1.46, cycle), 0.022, 0.070);
+  float ringB = softLine(radius - mix(0.08, 1.20, fract(cycle + 0.38)), 0.018, 0.060);
+  float core = (1.0 - smoothstep(0.08, 0.52, radius)) * (0.58 + 0.42 * sin(t * 0.34));
+  float pressure = (1.0 - smoothstep(0.10, mix(0.24, 1.22, cycle), radius)) * (1.0 - cycle);
+  return vec4(core, pressure, max(ringA, ringB), max(ringA * ringB, core * 0.76));
+}
+
+vec4 plasmaJetField(vec2 p, float t, vec4 q){
+  float turbulence = fbm(p * vec2(1.1, 4.8 + q.y) + vec2(-t * 0.20, t * 0.04));
+  float axis = p.y - sin(p.x * (1.8 + q.x) - t * 0.32) * 0.10 - (turbulence - 0.5) * 0.18;
+  float jetCore = softLine(axis, 0.030, 0.075);
+  float upperJet = softLine(axis - 0.14 - sin(p.x * 3.1 + t * 0.22) * 0.05, 0.045, 0.12);
+  float lowerJet = softLine(axis + 0.14 + cos(p.x * 2.7 - t * 0.20) * 0.05, 0.045, 0.12);
+  float packet = 0.56 + 0.44 * sin(p.x * (5.0 + q.z) - t * 0.66);
+  float nozzle = 1.0 - smoothstep(0.12, 0.58, length((p - vec2(-1.18, 0.0)) * vec2(0.72, 1.0)));
+  return vec4(upperJet, lowerJet, jetCore * packet, max(jetCore, nozzle));
+}
+
+vec4 chargeDiffuseField(vec2 p, float t, vec4 q){
+  float spread = 0.22 + fract(t * (0.020 + q.w * 0.012)) * 1.02;
+  vec2 centerA = vec2(-0.36, 0.05) + vec2(-spread * 0.58, sin(t * 0.08) * 0.12);
+  vec2 centerB = vec2(0.34, -0.04) + vec2(spread * 0.58, -sin(t * 0.08) * 0.12);
+  float chargeA = 1.0 - smoothstep(0.16, 0.82 + q.x * 0.14, length((p - centerA) * vec2(0.70, 1.0)));
+  float chargeB = 1.0 - smoothstep(0.16, 0.82 + q.z * 0.12, length((p - centerB) * vec2(0.70, 1.0)));
+  float repulsion = softLine(length(p - centerA) - length(p - centerB), 0.025, 0.10) * max(chargeA, chargeB);
+  float haze = fbm(p * vec2(0.84, 3.2) + vec2(t * 0.07, -t * 0.04));
+  float diffuseEdge = max(chargeA, chargeB) * smoothstep(0.38, 0.78, haze);
+  return vec4(chargeA, chargeB, repulsion, diffuseEdge);
+}
+
 void main(){
   vec2 localFragCoord = gl_FragCoord.xy - viewportOrigin;
   vec2 uv = localFragCoord / resolution.xy;
@@ -468,6 +545,12 @@ void main(){
   if(kernel == 30) materialFields = facetFoldField(p, flowTime, studyParams);
   if(kernel == 31) materialFields = crystalCollisionField(p, flowTime, studyParams);
   if(kernel == 32) materialFields = fractureGlowField(p, flowTime, studyParams);
+  if(kernel == 33) materialFields = dipoleCollisionField(p, flowTime, studyParams);
+  if(kernel == 34) materialFields = arcJumpField(p, flowTime, studyParams);
+  if(kernel == 35) materialFields = fieldLineField(p, flowTime, studyParams);
+  if(kernel == 36) materialFields = pulseBurstField(p, flowTime, studyParams);
+  if(kernel == 37) materialFields = plasmaJetField(p, flowTime, studyParams);
+  if(kernel == 38) materialFields = chargeDiffuseField(p, flowTime, studyParams);
 
   vec2 shape = warped;
   vec2 centerA = vec2(-0.32, 0.16) + macroDrift * vec2(0.18, 0.10);
@@ -681,6 +764,13 @@ void main(){
     vec3 crystalSpectrum = mix(colorA, colorB, 0.5 + 0.5 * sin((p.x - p.y) * 2.6 + flowTime * 0.10));
     color = mix(color, crystalSpectrum, facetEdge * 0.24);
     color = mix(color, vec3(1.0), materialFields.z * 0.22);
+  }
+  bool electromagneticKernel = kernel >= 33 && kernel <= 38;
+  if(electromagneticKernel){
+    float energyLine = smoothstep(0.28, 0.88, max(materialFields.z, materialFields.w));
+    vec3 chargedColor = clamp(mix(colorA, colorB, materialFields.y * 0.78 + 0.12) * 1.10, 0.0, 1.0);
+    color = mix(color, chargedColor, energyLine * 0.26);
+    color = mix(color, vec3(1.0), energyLine * (0.20 + intensity * 0.14));
   }
   bool forceKernel = (kernel >= 7 && kernel <= 12) || (kernel >= 22 && kernel <= 26);
   if(forceKernel){
