@@ -322,6 +322,87 @@ vec4 shearBraidField(vec2 p, float t, vec4 q){
   return vec4(softLine(upper, 0.10, 0.19), softLine(lower, 0.10, 0.19), softLine(upper - lower, 0.035, 0.09), softLine(filament, 0.05, 0.14));
 }
 
+vec4 crystalNucleationField(vec2 p, float t, vec4 q){
+  vec2 scaled = p * vec2(0.86 + q.x * 0.18, 2.5 + q.y);
+  vec2 cellId = floor(scaled);
+  vec2 cell = fract(scaled) - 0.5;
+  float randomCell = hash(cellId + 17.0);
+  cell += vec2(hash(cellId + 3.0), hash(cellId + 11.0) - 0.5) * 0.16;
+  vec2 absoluteCell = abs(cell);
+  float hexDistance = max(absoluteCell.y, absoluteCell.x * 0.866 + absoluteCell.y * 0.5);
+  float growth = smoothstep(0.02, 0.82, fract(t * (0.026 + q.w * 0.012) + randomCell));
+  float radius = mix(0.04, 0.54, growth);
+  float crystalBody = 1.0 - smoothstep(radius - 0.12, radius + 0.08, hexDistance);
+  float crystalEdge = softLine(hexDistance - radius, 0.018, 0.055) * growth;
+  float split = smoothstep(0.48, 0.52, randomCell);
+  return vec4(crystalBody * split, crystalBody * (1.0 - split), crystalEdge, crystalBody * (0.42 + 0.58 * growth));
+}
+
+vec4 dendriteField(vec2 p, float t, vec4 q){
+  vec2 center = vec2(sin(t * 0.055) * 0.30, cos(t * 0.041) * 0.08);
+  vec2 delta = (p - center) * vec2(0.72, 1.0);
+  float radius = length(delta);
+  float angle = atan(delta.y, delta.x);
+  float growth = 0.30 + fract(t * (0.018 + q.w * 0.010)) * 1.24;
+  float envelope = 1.0 - smoothstep(growth - 0.12, growth + 0.16, radius);
+  float primary = softLine(sin(angle * 3.0 + (fbm(delta * 3.2) - 0.5) * 0.8), 0.025, 0.11);
+  float secondary = softLine(sin(angle * 6.0 - radius * (7.0 + q.x * 2.0) + t * 0.08), 0.04, 0.14);
+  float branchTips = softLine(fract(radius * (4.0 + q.y) - t * 0.025) - 0.5, 0.08, 0.14);
+  return vec4(primary * envelope, secondary * envelope, max(primary, secondary) * branchTips * envelope, envelope * (0.28 + 0.72 * primary));
+}
+
+vec4 mineralVeinField(vec2 p, float t, vec4 q){
+  float rock = fbm(p * vec2(0.92, 3.4) + vec2(t * 0.035, -t * 0.018));
+  float crossRock = fbm(p.yx * vec2(3.1, 0.74) + vec2(-t * 0.025, t * 0.032) + 9.0);
+  float seamA = p.y - p.x * 0.13 - (rock - 0.5) * (0.54 + q.x * 0.12) - sin(p.x * 1.6 - t * 0.10) * 0.12;
+  float seamB = p.y + p.x * 0.09 + (crossRock - 0.5) * (0.48 + q.z * 0.10) + cos(p.x * 1.3 + t * 0.08) * 0.16;
+  float veinA = softLine(seamA, 0.026, 0.075);
+  float veinB = softLine(seamB, 0.030, 0.085);
+  float oreFace = smoothstep(0.30, 0.70, rock);
+  float crossing = min(veinA, veinB);
+  return vec4(oreFace, 1.0 - smoothstep(0.34, 0.72, crossRock), max(veinA, veinB), max(crossing, abs(rock - crossRock) * 0.46));
+}
+
+vec4 facetFoldField(vec2 p, float t, vec4 q){
+  vec2 rotated = p;
+  float turn = sin(t * 0.055) * (0.16 + q.y * 0.08);
+  rotated = mat2(cos(turn), -sin(turn), sin(turn), cos(turn)) * rotated;
+  float n = fbm(rotated * vec2(0.76, 2.7) + vec2(t * 0.025, -t * 0.018));
+  float facetA = sin(rotated.x * (2.1 + q.x) + rotated.y * 4.8 + n * 2.2 - t * 0.08);
+  float facetB = sin(rotated.x * (3.0 + q.z) - rotated.y * 3.4 - n * 1.8 + t * 0.065);
+  float faceA = smoothstep(-0.34, 0.62, facetA);
+  float faceB = smoothstep(-0.28, 0.66, facetB);
+  float foldEdge = max(softLine(facetA, 0.025, 0.09), softLine(facetB, 0.025, 0.09));
+  float refraction = smoothstep(0.62, 0.96, abs(facetA - facetB));
+  return vec4(faceA, faceB, foldEdge, refraction);
+}
+
+vec4 crystalCollisionField(vec2 p, float t, vec4 q){
+  float approach = 0.78 - (0.5 + 0.5 * sin(t * (0.085 + q.w * 0.035))) * 0.58;
+  vec2 left = (p - vec2(-approach, sin(t * 0.06) * 0.10)) * vec2(0.72, 1.0);
+  vec2 right = (p - vec2(approach, -sin(t * 0.055) * 0.10)) * vec2(0.72, 1.0);
+  vec2 leftAbs = abs(left);
+  vec2 rightAbs = abs(right);
+  float leftHex = max(leftAbs.y, leftAbs.x * 0.866 + leftAbs.y * 0.5);
+  float rightHex = max(rightAbs.y, rightAbs.x * 0.866 + rightAbs.y * 0.5);
+  float leftBody = 1.0 - smoothstep(0.34, 0.76, leftHex);
+  float rightBody = 1.0 - smoothstep(0.34, 0.76, rightHex);
+  float impact = softLine(leftHex - rightHex, 0.025, 0.08) * max(leftBody, rightBody);
+  float shards = softLine(sin(atan(p.y, p.x) * (5.0 + q.x) + length(p) * 8.0 - t * 0.20), 0.035, 0.11) * impact;
+  return vec4(leftBody, rightBody, max(impact, shards), min(leftBody, rightBody) + shards * 0.64);
+}
+
+vec4 fractureGlowField(vec2 p, float t, vec4 q){
+  float stoneA = fbm(p * vec2(0.84, 3.6) + vec2(t * 0.030, -t * 0.022));
+  float stoneB = fbm(p.yx * vec2(3.0, 0.78) + vec2(-t * 0.026, t * 0.018) + 13.0);
+  float crackBase = stoneA - stoneB + sin(p.x * (1.4 + q.x) + p.y * 2.6 - t * 0.12) * 0.13;
+  float mainCrack = softLine(crackBase, 0.018, 0.055);
+  float forkA = softLine(crackBase + sin(p.x * 3.2 - t * 0.18) * 0.16, 0.018, 0.060);
+  float forkB = softLine(crackBase - cos(p.x * 2.7 + t * 0.15) * 0.14, 0.018, 0.060);
+  float flare = 0.58 + 0.42 * sin(t * (0.10 + q.w * 0.06) + p.x * 0.7);
+  return vec4(smoothstep(0.30, 0.72, stoneA), smoothstep(0.32, 0.70, stoneB), max(mainCrack, max(forkA, forkB)), mainCrack * flare);
+}
+
 void main(){
   vec2 localFragCoord = gl_FragCoord.xy - viewportOrigin;
   vec2 uv = localFragCoord / resolution.xy;
@@ -381,6 +462,12 @@ void main(){
   if(kernel == 24) materialFields = shockField(p, flowTime, studyParams);
   if(kernel == 25) materialFields = collapseField(p, flowTime, studyParams);
   if(kernel == 26) materialFields = shearBraidField(p, flowTime, studyParams);
+  if(kernel == 27) materialFields = crystalNucleationField(p, flowTime, studyParams);
+  if(kernel == 28) materialFields = dendriteField(p, flowTime, studyParams);
+  if(kernel == 29) materialFields = mineralVeinField(p, flowTime, studyParams);
+  if(kernel == 30) materialFields = facetFoldField(p, flowTime, studyParams);
+  if(kernel == 31) materialFields = crystalCollisionField(p, flowTime, studyParams);
+  if(kernel == 32) materialFields = fractureGlowField(p, flowTime, studyParams);
 
   vec2 shape = warped;
   vec2 centerA = vec2(-0.32, 0.16) + macroDrift * vec2(0.18, 0.10);
@@ -588,7 +675,14 @@ void main(){
     color = mix(color, spectral, opticalEdge * 0.22);
     color = mix(color, vec3(1.0), materialFields.w * opticalEdge * 0.16);
   }
-  bool forceKernel = (kernel >= 7 && kernel <= 12) || kernel >= 22;
+  bool crystalKernel = kernel >= 27 && kernel <= 32;
+  if(crystalKernel){
+    float facetEdge = smoothstep(0.32, 0.90, max(materialFields.z, materialFields.w));
+    vec3 crystalSpectrum = mix(colorA, colorB, 0.5 + 0.5 * sin((p.x - p.y) * 2.6 + flowTime * 0.10));
+    color = mix(color, crystalSpectrum, facetEdge * 0.24);
+    color = mix(color, vec3(1.0), materialFields.z * 0.22);
+  }
+  bool forceKernel = (kernel >= 7 && kernel <= 12) || (kernel >= 22 && kernel <= 26);
   if(forceKernel){
     float forceOverlap = min(materialFields.x, materialFields.y);
     vec3 denseInk = clamp(mix(colorA, colorB, materialFields.y) * 0.82, 0.0, 1.0);

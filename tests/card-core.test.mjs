@@ -258,6 +258,25 @@ test("the V2 force chapter exposes vortex jet shock collapse and shear fields", 
   });
 });
 
+test("the crystal chapter exposes six structural growth fields", () => {
+  [
+    "crystalNucleationField",
+    "dendriteField",
+    "mineralVeinField",
+    "facetFoldField",
+    "crystalCollisionField",
+    "fractureGlowField",
+  ].forEach((name) => assert.match(FRAGMENT_SHADER, new RegExp(`vec4 ${name}\\(`)));
+  [27, 28, 29, 30, 31, 32].forEach((kernel) => {
+    assert.match(FRAGMENT_SHADER, new RegExp(`if\\(kernel == ${kernel}\\)`));
+  });
+  assert.match(
+    FRAGMENT_SHADER,
+    /bool forceKernel = \(kernel >= 7 && kernel <= 12\) \|\| \(kernel >= 22 && kernel <= 26\);/,
+  );
+  assert.match(FRAGMENT_SHADER, /bool crystalKernel = kernel >= 27 && kernel <= 32;/);
+});
+
 test("the glow kernel keeps a narrow moving caustic ridge", () => {
   assert.match(FRAGMENT_SHADER, /float glowRidge\s*=/);
   assert.match(
