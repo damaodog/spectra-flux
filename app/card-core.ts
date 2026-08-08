@@ -219,6 +219,57 @@ vec4 filamentField(vec2 p, float t, vec4 q){
   return vec4(f1,f2,smoothstep(0.56,0.94,f1),smoothstep(0.60,0.96,f2));
 }
 
+vec4 causticFoldField(vec2 p, float t, vec4 q){
+  float haze = fbm(p * vec2(0.74, 2.8) + vec2(t * 0.05, -t * 0.03));
+  float center = p.y - sin(p.x * (1.2 + q.x) - t * 0.12) * 0.18 - (haze - 0.5) * 0.22;
+  float foldA = softLine(center + sin(p.x * 2.4 + t * 0.08) * 0.09, 0.025, 0.055);
+  float foldB = softLine(center - 0.20 - cos(p.x * 1.8 - t * 0.10) * 0.08, 0.035, 0.070);
+  float body = softLine(center, 0.20, 0.28);
+  float pulse = 0.5 + 0.5 * sin(t * (0.08 + q.w * 0.05));
+  return vec4(body, body * (0.45 + haze * 0.55), max(foldA, foldB), pulse * body);
+}
+
+vec4 glassCollisionField(vec2 p, float t, vec4 q){
+  float approach = 0.54 - (0.5 + 0.5 * sin(t * 0.10)) * 0.34;
+  vec2 leftCenter = vec2(-approach, sin(t * 0.07) * 0.10);
+  vec2 rightCenter = vec2(approach, -sin(t * 0.08) * 0.10);
+  float leftDistance = length((p - leftCenter) * vec2(0.64, 1.0));
+  float rightDistance = length((p - rightCenter) * vec2(0.64, 1.0));
+  float leftBody = 1.0 - smoothstep(0.28, 0.78, leftDistance);
+  float rightBody = 1.0 - smoothstep(0.28, 0.78, rightDistance);
+  float rim = max(softLine(leftDistance - 0.52, 0.02, 0.07), softLine(rightDistance - 0.52, 0.02, 0.07));
+  float contact = softLine(leftDistance - rightDistance, 0.025, 0.08) * max(leftBody, rightBody);
+  return vec4(leftBody, rightBody, rim, contact);
+}
+
+vec4 prismMembraneField(vec2 p, float t, vec4 q){
+  float n = fbm(p * vec2(0.76, 3.4) + vec2(t * 0.06, -t * 0.04));
+  float membrane = p.y - sin(p.x * (1.1 + q.x) - t * 0.14) * 0.22 - (n - 0.5) * 0.18;
+  float crest = softLine(membrane, 0.025, 0.055);
+  float upper = softLine(membrane - 0.16, 0.10, 0.18);
+  float lower = softLine(membrane + 0.18, 0.11, 0.20);
+  float dispersion = crest * (0.5 + 0.5 * sin(p.x * (3.0 + q.z) - t * 0.20));
+  return vec4(upper, lower, crest, dispersion);
+}
+
+vec4 opalChannelField(vec2 p, float t, vec4 q){
+  float a = fbm(p * (1.2 + q.x * 0.4) + vec2(t * 0.06, -t * 0.04));
+  float b = fbm(p.yx * (1.8 + q.y * 0.3) + vec2(-t * 0.05, t * 0.07) + 8.0);
+  float boundary = a - b;
+  float fissure = softLine(boundary, 0.025, 0.07);
+  float channel = softLine(p.y - sin(p.x * (1.4 + q.z) - t * 0.18) * 0.18 - boundary * 0.22, 0.045, 0.10);
+  return vec4(smoothstep(0.30, 0.72, a), smoothstep(0.30, 0.72, b), fissure, channel);
+}
+
+vec4 veinField(vec2 p, float t, vec4 q){
+  float n1 = fbm(p * vec2(0.82, 3.8 + q.x) + vec2(t * 0.12, -t * 0.05));
+  float n2 = fbm(p.yx * vec2(2.6, 0.72) + vec2(-t * 0.08, t * 0.04) + 6.0);
+  float branchA = softLine(sin((p.y + (n1 - 0.5) * 0.42) * (5.0 + q.z) + p.x * 1.4 - t * 0.22), 0.06, 0.16);
+  float branchB = softLine(sin((p.y - (n2 - 0.5) * 0.38) * (6.0 + q.y) - p.x * 1.1 + t * 0.17), 0.06, 0.16);
+  float cells = 1.0 - smoothstep(0.08, 0.48, abs(n1 - n2));
+  return vec4(n1, n2, max(branchA, branchB), cells * min(branchA + branchB, 1.0));
+}
+
 void main(){
   vec2 localFragCoord = gl_FragCoord.xy - viewportOrigin;
   vec2 uv = localFragCoord / resolution.xy;
@@ -268,6 +319,11 @@ void main(){
   if(kernel == 14) materialFields = braidField(p, flowTime, studyParams);
   if(kernel == 15) materialFields = wakeField(p, flowTime, studyParams);
   if(kernel == 16) materialFields = foldField(p, flowTime, studyParams);
+  if(kernel == 17) materialFields = causticFoldField(p, flowTime, studyParams);
+  if(kernel == 18) materialFields = glassCollisionField(p, flowTime, studyParams);
+  if(kernel == 19) materialFields = prismMembraneField(p, flowTime, studyParams);
+  if(kernel == 20) materialFields = opalChannelField(p, flowTime, studyParams);
+  if(kernel == 21) materialFields = veinField(p, flowTime, studyParams);
 
   vec2 shape = warped;
   vec2 centerA = vec2(-0.32, 0.16) + macroDrift * vec2(0.18, 0.10);
@@ -468,11 +524,12 @@ void main(){
   color = mix(color, mix(colorA, colorB, 0.30), layerAlphaC * strength * 0.88);
   color = mix(color, mix(colorA, colorB, 0.72), layerAlphaD * strength * 0.84);
 
-  if(kernel >= 2 && kernel <= 6){
+  bool opticalKernel = (kernel >= 2 && kernel <= 6) || (kernel >= 17 && kernel <= 21);
+  if(opticalKernel){
     float opticalEdge = smoothstep(0.42, 0.94, materialFields.z);
     vec3 spectral = mix(colorA, colorB, 0.5 + 0.5 * sin((p.x + p.y) * 1.8 + flowTime * 0.12));
-    color = mix(color, spectral, opticalEdge * 0.18);
-    color = mix(color, vec3(1.0), materialFields.w * opticalEdge * 0.13);
+    color = mix(color, spectral, opticalEdge * 0.22);
+    color = mix(color, vec3(1.0), materialFields.w * opticalEdge * 0.16);
   }
   if(kernel >= 7){
     float forceOverlap = min(materialFields.x, materialFields.y);

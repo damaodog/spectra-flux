@@ -207,6 +207,19 @@ test("the V2 veil chapter exposes seam braid wake and fold fields", () => {
   assert.match(FRAGMENT_SHADER, /if\(kernel == 16\) materialFields = foldField/);
 });
 
+test("the V2 optical chapter exposes five structural material fields", () => {
+  [
+    "causticFoldField",
+    "glassCollisionField",
+    "prismMembraneField",
+    "opalChannelField",
+    "veinField",
+  ].forEach((name) => assert.match(FRAGMENT_SHADER, new RegExp(`vec4 ${name}\\(`)));
+  [17, 18, 19, 20, 21].forEach((kernel) => {
+    assert.match(FRAGMENT_SHADER, new RegExp(`if\\(kernel == ${kernel}\\)`));
+  });
+});
+
 test("the glow kernel keeps a narrow moving caustic ridge", () => {
   assert.match(FRAGMENT_SHADER, /float glowRidge\s*=/);
   assert.match(
