@@ -168,10 +168,32 @@ test("SPECTRA FLUX uses a sticky left rail and responsive gallery", async () => 
   );
   assert.match(
     css,
+    /\.control-rail-inner\s*\{[^}]*height:\s*100vh;[^}]*overflow-y:\s*auto;/s,
+  );
+  assert.match(
+    css,
+    /\.control-rail\s*\{[^}]*align-self:\s*stretch;/s,
+  );
+  assert.match(
+    css,
+    /\.intro h1\s*\{[^}]*font-size:\s*clamp\(46px, 3\.5vw, 48px\)/s,
+  );
+  assert.match(
+    css,
     /@media \(max-width: 1100px\)[\s\S]*\.studio-shell\s*\{[^}]*grid-template-columns:\s*minmax\(0, 848px\)/,
   );
   assert.match(
     css,
     /@media \(max-width: 1100px\)[\s\S]*\.control-rail-inner\s*\{[^}]*position:\s*static/,
+  );
+});
+
+test("the SPECTRA FLUX wordmark keeps a compact pixel accent", async () => {
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+
+  assert.match(css, /\.brand\s*\{[^}]*background:\s*none;/s);
+  assert.match(
+    css,
+    /\.brand::before\s*\{[^}]*radial-gradient\(circle, var\(--ink\) 1px, transparent 1\.2px\)/s,
   );
 });
