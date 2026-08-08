@@ -480,6 +480,91 @@ vec4 chargeDiffuseField(vec2 p, float t, vec4 q){
   return vec4(chargeA, chargeB, repulsion, diffuseEdge);
 }
 
+vec4 orbitField(vec2 p, float t, vec4 q){
+  float orbitAngle = t * (0.07 + q.w * 0.045);
+  vec2 starA = vec2(cos(orbitAngle), sin(orbitAngle)) * vec2(0.48 + q.x * 0.12, 0.19);
+  vec2 starB = -starA * (0.72 + q.y * 0.18);
+  float radiusA = length((p - starA) * vec2(0.68, 1.0));
+  float radiusB = length((p - starB) * vec2(0.68, 1.0));
+  float glowA = 1.0 - smoothstep(0.08, 0.54, radiusA);
+  float glowB = 1.0 - smoothstep(0.07, 0.46, radiusB);
+  float ellipseRadius = length(p * vec2(0.70, 2.2));
+  float orbitTrail = softLine(ellipseRadius - (0.62 + q.z * 0.10), 0.022, 0.075);
+  float bridge = softLine(p.y - sin(p.x * 2.4 - orbitAngle) * 0.10, 0.035, 0.10) * max(glowA, glowB);
+  return vec4(glowA, glowB, orbitTrail, max(bridge, min(glowA, glowB)));
+}
+
+vec4 gravityWellField(vec2 p, float t, vec4 q){
+  vec2 center = vec2(sin(t * 0.045) * 0.24, cos(t * 0.039) * 0.06);
+  vec2 delta = (p - center) * vec2(0.68, 1.0);
+  float radius = max(length(delta), 0.025);
+  float angle = atan(delta.y, delta.x);
+  float warpedPhase = angle * (2.0 + q.z) + log(radius + 0.08) * (5.0 + q.x) - t * 0.12;
+  float curvedSpaceA = 0.5 + 0.5 * sin(warpedPhase);
+  float curvedSpaceB = 0.5 + 0.5 * cos(warpedPhase * 0.76 + t * 0.07);
+  float lensArc = softLine(sin(warpedPhase * 1.45), 0.030, 0.10) * (1.0 - smoothstep(0.30, 1.38, radius));
+  float deepCore = 1.0 - smoothstep(0.08, 0.40 + abs(q.y) * 0.08, radius);
+  return vec4(curvedSpaceA * (1.0 - deepCore * 0.56), curvedSpaceB * (1.0 - deepCore * 0.48), lensArc, deepCore);
+}
+
+vec4 coronaField(vec2 p, float t, vec4 q){
+  vec2 center = vec2(-0.18 + sin(t * 0.048) * 0.22, cos(t * 0.041) * 0.06);
+  vec2 delta = (p - center) * vec2(0.70, 1.0);
+  float radius = length(delta);
+  float angle = atan(delta.y, delta.x);
+  float coronaNoise = fbm(vec2(angle * (1.3 + q.x * 0.18), radius * 4.4 - t * 0.10));
+  float starCore = 1.0 - smoothstep(0.10, 0.58, radius);
+  float rim = softLine(radius - 0.52, 0.020, 0.070);
+  float flare = softLine(sin(angle * (5.0 + q.z) + coronaNoise * 2.2 - t * 0.16), 0.04, 0.13) * (1.0 - smoothstep(0.46, 1.32, radius));
+  float tailAxis = p.y - center.y - sin((p.x - center.x) * 1.7 - t * 0.18) * 0.11;
+  float cometTail = softLine(tailAxis, 0.06, 0.18) * smoothstep(center.x - 0.08, center.x + 0.40, p.x) * (1.0 - smoothstep(center.x + 0.22, 1.52, p.x));
+  return vec4(starCore, flare * (0.44 + coronaNoise * 0.56), rim, max(flare * rim, cometTail));
+}
+
+vec4 nebulaMergeField(vec2 p, float t, vec4 q){
+  float approach = 0.72 - (0.5 + 0.5 * sin(t * (0.046 + q.w * 0.018))) * 0.42;
+  vec2 centerA = vec2(-approach, 0.12 + sin(t * 0.038) * 0.08);
+  vec2 centerB = vec2(approach, -0.10 - sin(t * 0.041) * 0.08);
+  vec2 warpedA = p - centerA + vortexWarp(p, centerA, 0.32 + q.x * 0.10, 1.8);
+  vec2 warpedB = p - centerB + vortexWarp(p, centerB, -0.28 - q.z * 0.10, 1.7);
+  float cloudA = fbm(warpedA * vec2(0.72, 2.8) + vec2(t * 0.04, -t * 0.02));
+  float cloudB = fbm(warpedB * vec2(0.76, 2.6) + vec2(-t * 0.035, t * 0.025) + 8.0);
+  float massA = (1.0 - smoothstep(0.34, 1.06, length(warpedA * vec2(0.62, 1.0)))) * smoothstep(0.26, 0.72, cloudA);
+  float massB = (1.0 - smoothstep(0.32, 1.02, length(warpedB * vec2(0.62, 1.0)))) * smoothstep(0.28, 0.72, cloudB);
+  float merger = min(massA, massB);
+  float tidalThread = softLine(cloudA - cloudB, 0.025, 0.09) * max(massA, massB);
+  return vec4(massA, massB, max(merger, tidalThread), merger * (0.56 + 0.44 * sin(t * 0.08)));
+}
+
+vec4 accretionField(vec2 p, float t, vec4 q){
+  vec2 delta = p - vec2(sin(t * 0.038) * 0.16, 0.0);
+  vec2 diskPoint = delta * vec2(0.56, 1.42);
+  float radius = max(length(diskPoint), 0.025);
+  float angle = atan(diskPoint.y, diskPoint.x);
+  float spiral = 0.5 + 0.5 * sin(angle * (2.5 + q.x) + log(radius + 0.08) * (6.0 + q.z) - t * 0.20);
+  float disk = (1.0 - smoothstep(0.28, 1.30, radius)) * smoothstep(0.10, 0.34, radius);
+  float hotBand = softLine(sin(angle * 2.0 + radius * 10.0 - t * 0.28), 0.035, 0.12) * disk;
+  float burstMode = smoothstep(0.90, 1.08, q.y);
+  float burstRadius = mix(0.46, fract(t * 0.025) * 1.36, burstMode);
+  float burstRing = softLine(radius - burstRadius, 0.024, 0.080) * burstMode;
+  float darkCore = 1.0 - smoothstep(0.06, 0.27, radius);
+  return vec4(disk * spiral, disk * (1.0 - spiral), max(hotBand, burstRing), darkCore);
+}
+
+vec4 cosmicWebField(vec2 p, float t, vec4 q){
+  vec2 scaled = p * vec2(1.2 + q.x * 0.16, 3.2 + q.y) + vec2(t * 0.025, -t * 0.018);
+  vec2 cellId = floor(scaled);
+  vec2 cell = fract(scaled) - 0.5;
+  vec2 nodeOffset = vec2(hash(cellId + 2.0), hash(cellId + 7.0)) - 0.5;
+  nodeOffset *= 0.42;
+  float node = 1.0 - smoothstep(0.05, 0.24, length(cell - nodeOffset));
+  float webA = softLine(sin((p.y + (fbm(p * 1.8 + t * 0.03) - 0.5) * 0.34) * (5.0 + q.z) + p.x * 1.4), 0.035, 0.12);
+  float webB = softLine(sin((p.y - (fbm(p.yx * 2.1 - t * 0.025) - 0.5) * 0.30) * (6.0 + q.x) - p.x * 1.1), 0.035, 0.12);
+  float junction = max(node, min(webA, webB));
+  float pulse = 0.58 + 0.42 * sin(t * (0.06 + q.w * 0.03) + hash(cellId) * 6.283);
+  return vec4(webA * 0.72, webB * 0.72, junction, node * pulse);
+}
+
 void main(){
   vec2 localFragCoord = gl_FragCoord.xy - viewportOrigin;
   vec2 uv = localFragCoord / resolution.xy;
@@ -551,6 +636,12 @@ void main(){
   if(kernel == 36) materialFields = pulseBurstField(p, flowTime, studyParams);
   if(kernel == 37) materialFields = plasmaJetField(p, flowTime, studyParams);
   if(kernel == 38) materialFields = chargeDiffuseField(p, flowTime, studyParams);
+  if(kernel == 39) materialFields = orbitField(p, flowTime, studyParams);
+  if(kernel == 40) materialFields = gravityWellField(p, flowTime, studyParams);
+  if(kernel == 41) materialFields = coronaField(p, flowTime, studyParams);
+  if(kernel == 42) materialFields = nebulaMergeField(p, flowTime, studyParams);
+  if(kernel == 43) materialFields = accretionField(p, flowTime, studyParams);
+  if(kernel == 44) materialFields = cosmicWebField(p, flowTime, studyParams);
 
   vec2 shape = warped;
   vec2 centerA = vec2(-0.32, 0.16) + macroDrift * vec2(0.18, 0.10);
@@ -772,6 +863,16 @@ void main(){
     color = mix(color, chargedColor, energyLine * 0.26);
     color = mix(color, vec3(1.0), energyLine * (0.20 + intensity * 0.14));
   }
+  bool cosmicKernel = kernel >= 39 && kernel <= 44;
+  if(cosmicKernel){
+    float trajectory = smoothstep(0.24, 0.88, max(materialFields.z, materialFields.w));
+    vec3 cosmicColor = mix(colorA, colorB, 0.5 + 0.5 * sin(length(p) * 3.2 - flowTime * 0.08));
+    color = mix(color, cosmicColor, trajectory * 0.24);
+    color = mix(color, vec3(1.0), materialFields.z * 0.16);
+    if(kernel == 43){
+      color = mix(color, mix(colorA, colorB, 0.52) * 0.62, materialFields.w * 0.34);
+    }
+  }
   bool forceKernel = (kernel >= 7 && kernel <= 12) || (kernel >= 22 && kernel <= 26);
   if(forceKernel){
     float forceOverlap = min(materialFields.x, materialFields.y);
@@ -913,7 +1014,7 @@ export function buildEmbed(config: CardConfig) {
   const width = clamp(config.width, 480, 1600);
   const height = clamp(config.height, 220, 900);
   const variantValue = Math.trunc(clamp(config.variant, 0, SMOKE_VARIANT_COUNT - 1));
-  const kernelValue = Math.trunc(clamp(config.kernel, 0, 26));
+  const kernelValue = Math.trunc(clamp(config.kernel, 0, 44));
   const params = config.params.map((value) => clamp(value, -2, 2));
   const vertex = JSON.stringify(VERTEX_SHADER);
   const fragment = JSON.stringify(FRAGMENT_SHADER);

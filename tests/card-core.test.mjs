@@ -292,6 +292,43 @@ test("the electromagnetic chapter exposes six energetic field structures", () =>
   assert.match(FRAGMENT_SHADER, /bool electromagneticKernel = kernel >= 33 && kernel <= 38;/);
 });
 
+test("the cosmic chapter exposes six gravitational field structures", () => {
+  [
+    "orbitField",
+    "gravityWellField",
+    "coronaField",
+    "nebulaMergeField",
+    "accretionField",
+    "cosmicWebField",
+  ].forEach((name) => assert.match(FRAGMENT_SHADER, new RegExp(`vec4 ${name}\\(`)));
+  [39, 40, 41, 42, 43, 44].forEach((kernel) => {
+    assert.match(FRAGMENT_SHADER, new RegExp(`if\\(kernel == ${kernel}\\)`));
+  });
+  assert.match(FRAGMENT_SHADER, /bool cosmicKernel = kernel >= 39 && kernel <= 44;/);
+});
+
+test("embed transfers the highest cosmic kernel", () => {
+  const html = buildEmbed({
+    title: "SPECTRA",
+    subtitle: "COLOR AS A LIVING SYSTEM.",
+    label: "STYLE 72",
+    colorA: "#64e0c1",
+    colorB: "#2778ff",
+    seed: 2026,
+    speed: 0.6,
+    intensity: 0.74,
+    radius: 54,
+    width: 400,
+    height: 100,
+    studyId: 71,
+    variant: 71,
+    kernel: 44,
+    params: [1.52, 0.46, 0.84, 0.76],
+  });
+
+  assert.match(html, /uniform1i\(kernel,44\)/);
+});
+
 test("the glow kernel keeps a narrow moving caustic ridge", () => {
   assert.match(FRAGMENT_SHADER, /float glowRidge\s*=/);
   assert.match(
