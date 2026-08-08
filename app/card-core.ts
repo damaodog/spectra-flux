@@ -270,6 +270,58 @@ vec4 veinField(vec2 p, float t, vec4 q){
   return vec4(n1, n2, max(branchA, branchB), cells * min(branchA + branchB, 1.0));
 }
 
+vec4 vortexMergeField(vec2 p, float t, vec4 q){
+  float approach = 0.62 - (0.5 + 0.5 * sin(t * 0.08)) * 0.36;
+  vec2 left = p - vec2(-approach, 0.10);
+  vec2 right = p - vec2(approach, -0.10);
+  float leftRadius = length(left * vec2(0.66, 1.0));
+  float rightRadius = length(right * vec2(0.66, 1.0));
+  float leftSpin = 0.5 + 0.5 * sin(leftRadius * (8.0 + q.x * 2.0) + atan(left.y, left.x) * 2.0 - t * 0.30);
+  float rightSpin = 0.5 + 0.5 * sin(rightRadius * (8.0 + q.z * 2.0) - atan(right.y, right.x) * 2.0 - t * 0.26);
+  float leftMass = 1.0 - smoothstep(0.34, 0.92, leftRadius);
+  float rightMass = 1.0 - smoothstep(0.34, 0.92, rightRadius);
+  return vec4(leftMass * leftSpin, rightMass * rightSpin, min(leftMass, rightMass), softLine(leftRadius - rightRadius, 0.03, 0.10));
+}
+
+vec4 jetCollisionField(vec2 p, float t, vec4 q){
+  float n = fbm(p * vec2(0.82, 4.0) + vec2(t * 0.13, -t * 0.06));
+  float seam = p.y - sin(p.x * (1.2 + q.x) - t * 0.18) * 0.15 - (n - 0.5) * 0.18;
+  float leftJet = softLine(seam - p.x * 0.13, 0.055, 0.13) * (1.0 - smoothstep(-0.18, 0.76, p.x));
+  float rightJet = softLine(seam + p.x * 0.13, 0.055, 0.13) * smoothstep(-0.76, 0.18, p.x);
+  float impact = softLine(p.x + sin(t * 0.09) * 0.16, 0.05, 0.14) * softLine(seam, 0.10, 0.22);
+  float tear = softLine(seam + sin(p.x * 2.4 + t * 0.13) * 0.11, 0.03, 0.08);
+  return vec4(leftJet, rightJet, impact, tear);
+}
+
+vec4 shockField(vec2 p, float t, vec4 q){
+  vec2 center = vec2(sin(t * 0.07) * 0.34, cos(t * 0.06) * 0.10);
+  float radius = length((p - center) * vec2(0.62, 1.0));
+  float cycle = 0.28 + fract(t * (0.035 + q.w * 0.02)) * 0.78;
+  float ring = softLine(radius - cycle, 0.025, 0.08);
+  float core = 1.0 - smoothstep(0.16, 0.62, radius);
+  float fog = fbm(p * vec2(0.90, 2.8) + vec2(t * 0.05, -t * 0.03));
+  float pressure = softLine(radius - cycle * 0.68 - (fog - 0.5) * 0.10, 0.05, 0.12);
+  return vec4(core, pressure, ring, ring * (0.45 + fog * 0.55));
+}
+
+vec4 collapseField(vec2 p, float t, vec4 q){
+  float pulse = 0.5 + 0.5 * sin(t * (0.07 + q.w * 0.04));
+  vec2 scale = vec2(mix(0.48, 1.18, pulse), mix(1.28, 0.68, pulse));
+  float n = fbm(p * vec2(0.76, 3.0) + vec2(t * 0.06, -t * 0.04));
+  float mass = 1.0 - smoothstep(0.28, 1.02, length((p + vec2((n - 0.5) * 0.18, 0.0)) * scale));
+  float core = 1.0 - smoothstep(0.10, 0.46, length(p * scale));
+  float lateral = softLine(p.y - (n - 0.5) * 0.20, 0.09, 0.20) * pulse;
+  return vec4(mass, core, lateral, min(mass, core + lateral));
+}
+
+vec4 shearBraidField(vec2 p, float t, vec4 q){
+  float n = fbm(p * vec2(0.72, 4.4) + vec2(t * 0.14, -t * 0.07));
+  float upper = p.y - 0.18 - sin(p.x * (1.5 + q.x) - t * 0.22) * 0.16 - (n - 0.5) * 0.16;
+  float lower = p.y + 0.18 - sin(p.x * (1.9 + q.z) + t * 0.17) * 0.15 + (n - 0.5) * 0.14;
+  float filament = sin((p.y + (n - 0.5) * 0.44) * (8.0 + q.x * 2.0) + p.x * 1.4 - t * 0.34);
+  return vec4(softLine(upper, 0.10, 0.19), softLine(lower, 0.10, 0.19), softLine(upper - lower, 0.035, 0.09), softLine(filament, 0.05, 0.14));
+}
+
 void main(){
   vec2 localFragCoord = gl_FragCoord.xy - viewportOrigin;
   vec2 uv = localFragCoord / resolution.xy;
@@ -324,6 +376,11 @@ void main(){
   if(kernel == 19) materialFields = prismMembraneField(p, flowTime, studyParams);
   if(kernel == 20) materialFields = opalChannelField(p, flowTime, studyParams);
   if(kernel == 21) materialFields = veinField(p, flowTime, studyParams);
+  if(kernel == 22) materialFields = vortexMergeField(p, flowTime, studyParams);
+  if(kernel == 23) materialFields = jetCollisionField(p, flowTime, studyParams);
+  if(kernel == 24) materialFields = shockField(p, flowTime, studyParams);
+  if(kernel == 25) materialFields = collapseField(p, flowTime, studyParams);
+  if(kernel == 26) materialFields = shearBraidField(p, flowTime, studyParams);
 
   vec2 shape = warped;
   vec2 centerA = vec2(-0.32, 0.16) + macroDrift * vec2(0.18, 0.10);
@@ -531,7 +588,8 @@ void main(){
     color = mix(color, spectral, opticalEdge * 0.22);
     color = mix(color, vec3(1.0), materialFields.w * opticalEdge * 0.16);
   }
-  if(kernel >= 7){
+  bool forceKernel = (kernel >= 7 && kernel <= 12) || kernel >= 22;
+  if(forceKernel){
     float forceOverlap = min(materialFields.x, materialFields.y);
     vec3 denseInk = clamp(mix(colorA, colorB, materialFields.y) * 0.82, 0.0, 1.0);
     color = mix(color, denseInk, forceOverlap * (0.16 + intensity * 0.16));

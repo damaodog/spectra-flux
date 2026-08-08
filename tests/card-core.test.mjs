@@ -220,6 +220,19 @@ test("the V2 optical chapter exposes five structural material fields", () => {
   });
 });
 
+test("the V2 force chapter exposes vortex jet shock collapse and shear fields", () => {
+  [
+    "vortexMergeField",
+    "jetCollisionField",
+    "shockField",
+    "collapseField",
+    "shearBraidField",
+  ].forEach((name) => assert.match(FRAGMENT_SHADER, new RegExp(`vec4 ${name}\\(`)));
+  [22, 23, 24, 25, 26].forEach((kernel) => {
+    assert.match(FRAGMENT_SHADER, new RegExp(`if\\(kernel == ${kernel}\\)`));
+  });
+});
+
 test("the glow kernel keeps a narrow moving caustic ridge", () => {
   assert.match(FRAGMENT_SHADER, /float glowRidge\s*=/);
   assert.match(
