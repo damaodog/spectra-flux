@@ -214,3 +214,24 @@ test("the Cloudflare build keeps custom and workers.dev routes", async () => {
     },
   ]);
 });
+
+test("the lab preview uses one context, one canvas, and integrated clocks", async () => {
+  const source = await readFile(
+    new URL("../app/lab/lab-preview.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.equal((source.match(/getContext\("webgl2"/g) || []).length, 1);
+  assert.equal((source.match(/<canvas/g) || []).length, 1);
+  assert.match(source, /advancePhaseTimes\(/);
+  assert.match(source, /uniform1fv\(uniforms\.layerTimes/);
+  assert.match(
+    source,
+    /Math\.min\(window\.devicePixelRatio \|\| 1, 1\.5\)/,
+  );
+  assert.match(source, /if \(document\.hidden\) return;/);
+  assert.doesNotMatch(
+    source,
+    /createFramebuffer|drawImage|getContext\("2d"/,
+  );
+});
