@@ -29,6 +29,18 @@ const expectedV2Names = [
   "边界卷起", "密度呼吸", "潮汐剪切", "湍流编织",
 ];
 
+const expectedExpansionNames = [
+  "晶核萌生", "冰枝蔓延", "矿脉贯穿", "棱面折叠",
+  "晶簇碰撞", "裂隙发光", "结晶潮汐", "宝石呼吸",
+  "晶格错位", "盐花扩散", "棱镜破片", "晶体坍缩",
+  "磁极对撞", "电弧跃迁", "场线缠绕", "脉冲爆发",
+  "等离子喷流", "电荷扩散", "相位闪移", "环形放电",
+  "双极撕裂", "磁暴呼吸", "能量虹吸", "雷暴织网",
+  "双星绕行", "引力深井", "日冕喷发", "星云融合",
+  "黑洞吸积", "行星潮汐", "彗尾漂移", "超新星扩散",
+  "星团呼吸", "暗质牵引", "引力透镜", "宇宙网脉",
+];
+
 test("createPreset is deterministic for a seed", () => {
   assert.deepEqual(createPreset(2026), createPreset(2026));
   assert.notDeepEqual(createPreset(2026), createPreset(2027));
@@ -39,15 +51,19 @@ test("the default preview card is 400 by 100", () => {
   assert.equal(DEFAULT_CARD_HEIGHT, 100);
 });
 
-test("the catalog exposes thirty-six stable motion identities", () => {
+test("the catalog exposes seventy-two stable motion identities", () => {
   assert.equal(MOTION_PAGE_SIZE, 12);
-  assert.equal(MOTION_STUDIES.length, 36);
-  assert.equal(new Set(MOTION_STUDIES.map(({ id }) => id)).size, 36);
-  assert.equal(new Set(MOTION_STUDIES.map(({ name }) => name)).size, 36);
+  assert.equal(MOTION_STUDIES.length, 72);
+  assert.equal(new Set(MOTION_STUDIES.map(({ id }) => id)).size, 72);
+  assert.equal(new Set(MOTION_STUDIES.map(({ name }) => name)).size, 72);
+  assert.deepEqual(
+    MOTION_STUDIES.map(({ id }) => id),
+    Array.from({ length: 72 }, (_, index) => index),
+  );
 });
 
-test("the V2 catalog keeps the approved studies first in each chapter", () => {
-  assert.deepEqual(MOTION_STUDIES.map(({ name }) => name), expectedV2Names);
+test("the catalog preserves the approved first thirty-six studies", () => {
+  assert.deepEqual(MOTION_STUDIES.slice(0, 36).map(({ name }) => name), expectedV2Names);
   assert.deepEqual(
     [0, 1, 2, 3, 12, 13, 24, 25, 26].map((index) => {
       const study = MOTION_STUDIES[index];
@@ -61,46 +77,55 @@ test("the V2 catalog keeps the approved studies first in each chapter", () => {
   );
 });
 
+test("the expansion catalog has exact names, chapters, and bounded kernels", () => {
+  assert.deepEqual(
+    MOTION_STUDIES.slice(36).map(({ name }) => name),
+    expectedExpansionNames,
+  );
+  assert.deepEqual(
+    MOTION_STUDIES.map(({ chapter }) => chapter),
+    Array.from({ length: 72 }, (_, index) => Math.floor(index / 12)),
+  );
+  assert.deepEqual(
+    [...new Set(MOTION_STUDIES.slice(36).map(({ kernel }) => kernel))],
+    Array.from({ length: 18 }, (_, index) => index + 27),
+  );
+});
+
 test("gallery display identity is independent from shader identity", () => {
   const gallery = createGallery(2026);
   assert.deepEqual(
     gallery.map(({ studyId }) => studyId),
-    Array.from({ length: 36 }, (_, index) => index),
+    Array.from({ length: 72 }, (_, index) => index),
   );
   assert.deepEqual(gallery.slice(0, 4).map(({ variant }) => variant), [0, 2, 4, 10]);
   assert.deepEqual(gallery.slice(12, 14).map(({ variant }) => variant), [12, 21]);
   assert.deepEqual(gallery.slice(24, 27).map(({ variant }) => variant), [29, 31, 33]);
 });
 
-test("the catalog splits into three exact pages", () => {
-  assert.deepEqual(
-    getMotionPage(0).map(({ id }) => id),
-    Array.from({ length: 12 }, (_, index) => index),
-  );
-  assert.deepEqual(
-    getMotionPage(1).map(({ id }) => id),
-    Array.from({ length: 12 }, (_, index) => index + 12),
-  );
-  assert.deepEqual(
-    getMotionPage(2).map(({ id }) => id),
-    Array.from({ length: 12 }, (_, index) => index + 24),
-  );
+test("the catalog splits into six exact pages", () => {
+  for (let page = 0; page < 6; page += 1) {
+    assert.deepEqual(
+      getMotionPage(page).map(({ id }) => id),
+      Array.from({ length: 12 }, (_, index) => index + page * 12),
+    );
+  }
   assert.deepEqual(getMotionPage(99), []);
 });
 
-test("createGallery returns thirty-six deterministic configured studies", () => {
+test("createGallery returns seventy-two deterministic configured studies", () => {
   const gallery = createGallery(2026);
-  assert.equal(gallery.length, 36);
+  assert.equal(gallery.length, 72);
   assert.equal(gallery.length, SMOKE_VARIANT_COUNT);
   assert.deepEqual(
     gallery.map((card) => card.studyId),
-    Array.from({ length: 36 }, (_, index) => index),
+    Array.from({ length: 72 }, (_, index) => index),
   );
   assert.deepEqual(
     gallery.map((card) => card.variant),
     MOTION_STUDIES.map((study) => study.shaderVariant),
   );
-  assert.equal(new Set(gallery.map((card) => card.seed)).size, 36);
+  assert.equal(new Set(gallery.map((card) => card.seed)).size, 72);
   assert.deepEqual(gallery, createGallery(2026));
   assert.notDeepEqual(gallery, createGallery(2027));
   gallery.forEach((study, index) => {

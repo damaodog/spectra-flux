@@ -36,7 +36,9 @@ test("server-renders the WebGL card generator", async () => {
   assert.doesNotMatch(html, />LUMA LAB<\/a>/);
   assert.match(html, /COLOR AS A LIVING SYSTEM\./);
   assert.match(html, /一键全部随机/);
-  ["01–12", "13–24", "25–36"].forEach((label) => {
+  assert.match(html, /SEVENTY-TWO GENERATIVE MOTION STUDIES/);
+  assert.match(html, /七十二张卡片/);
+  ["01–12", "13–24", "25–36", "37–48", "49–60", "61–72"].forEach((label) => {
     assert.match(html, new RegExp(label));
   });
   assert.equal((html.match(/class="card-study"/g) || []).length, 12);

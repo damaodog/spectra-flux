@@ -19,6 +19,9 @@ const pages = [
   { range: "01–12", title: "雾与薄纱" },
   { range: "13–24", title: "光学材质" },
   { range: "25–36", title: "流体力场" },
+  { range: "37–48", title: "晶体生长" },
+  { range: "49–60", title: "电磁脉冲" },
+  { range: "61–72", title: "天体引力" },
 ] as const;
 
 const sharedInitial = {
@@ -267,7 +270,7 @@ export default function Home() {
   const [cards, setCards] = useState(() => makeCards(20260807));
   const [playing, setPlaying] = useState(true);
   const [pageIndex, setPageIndex] = useState(0);
-  const [notice, setNotice] = useState("三十六款动态已载入");
+  const [notice, setNotice] = useState("七十二款动态已载入");
   const pageStart = pageIndex * MOTION_PAGE_SIZE;
   const visibleCards = cards.slice(pageStart, pageStart + MOTION_PAGE_SIZE);
 
@@ -288,7 +291,7 @@ export default function Home() {
     setCards((current) =>
       current.map((card, index) => ({ ...card, ...visuals[index] })),
     );
-    setNotice(`三十六款已全部随机 · ${masterSeed}`);
+    setNotice(`七十二款已全部随机 · ${masterSeed}`);
   };
 
   return (
@@ -308,11 +311,11 @@ export default function Home() {
             </header>
 
             <section className="intro">
-          <span className="eyebrow">THIRTY-SIX GENERATIVE MOTION STUDIES / 2026</span>
-          <h1>三十六张卡片，<br />三十六种动态。</h1>
+          <span className="eyebrow">SEVENTY-TWO GENERATIVE MOTION STUDIES / 2026</span>
+          <h1>七十二张卡片，<br />七十二种动态。</h1>
               <p>
-                三页分别探索雾与薄纱、光学材质和流体力场。每页仅驱动十二张卡片，
-                一次随机则会更新全部三十六套配色与细节。
+                六页探索雾、光学、流体、晶体、电磁与引力。每页仅驱动十二张卡片，
+                一次随机则会更新全部七十二套配色与细节。
               </p>
             </section>
 
@@ -328,7 +331,7 @@ export default function Home() {
                 onClick={() => {
                   setCards(makeCards(20260807));
                   setPageIndex(0);
-                  setNotice("已恢复三十六款默认动态");
+                  setNotice("已恢复七十二款默认动态");
                 }}
               >
                 重置
@@ -351,13 +354,13 @@ export default function Home() {
             </nav>
 
             <footer>
-              <span>ONE WEBGL CONTEXT · THIRTY-SIX MOTION STUDIES</span>
+              <span>ONE WEBGL CONTEXT · SEVENTY-TWO MOTION STUDIES</span>
               <span>400 × 100 · COLOR AREA 75%</span>
             </footer>
           </div>
         </aside>
 
-        <section className="gallery-panel workspace" aria-label="三十六张动态效果卡片">
+        <section className="gallery-panel workspace" aria-label="七十二张动态效果卡片">
           <AtlasGallery
             key={pageIndex}
             configs={visibleCards}
