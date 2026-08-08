@@ -2,6 +2,8 @@
 
 > 72 种 WebGL 生成式动态卡片图谱，探索雾、光学、流体、晶体、电磁与引力。
 
+**在线预览：** [spectra.8538690.xyz](https://spectra.8538690.xyz)
+
 ![SPECTRA FLUX 页面预览](docs/images/spectra-flux-preview.png)
 
 SPECTRA FLUX 是一个运行在浏览器中的生成式动态视觉实验。每张卡片以相同的极简白色载体呈现不同的色彩运动：烟雾交叠、光学折射、流体碰撞、晶体生长、电磁脉冲与天体引力。
