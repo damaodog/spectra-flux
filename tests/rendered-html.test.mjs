@@ -199,3 +199,18 @@ test("the SPECTRA FLUX wordmark keeps a compact pixel accent", async () => {
     /\.brand::before\s*\{[^}]*radial-gradient\(circle, var\(--ink\) 1px, transparent 1\.2px\)/s,
   );
 });
+
+test("the Cloudflare build keeps custom and workers.dev routes", async () => {
+  const config = JSON.parse(
+    await readFile(new URL("../dist/server/wrangler.json", import.meta.url), "utf8"),
+  );
+
+  assert.equal(config.name, "spectra-flux");
+  assert.equal(config.workers_dev, true);
+  assert.deepEqual(config.routes, [
+    {
+      pattern: "spectra.8538690.xyz",
+      custom_domain: true,
+    },
+  ]);
+});
