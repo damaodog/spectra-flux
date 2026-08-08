@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-async function render() {
+async function render(pathname = "/") {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
   const { default: worker } = await import(workerUrl.href);
 
   return worker.fetch(
-    new Request("http://localhost/", {
+    new Request(new URL(pathname, "http://localhost"), {
       headers: { accept: "text/html" },
     }),
     {
@@ -233,5 +233,46 @@ test("the lab preview uses one context, one canvas, and integrated clocks", asyn
   assert.doesNotMatch(
     source,
     /createFramebuffer|drawImage|getContext\("2d"/,
+  );
+});
+
+test("server-renders the single-card random mix lab", async () => {
+  const response = await render("/lab");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+
+  assert.match(html, /随机实验室/);
+  assert.match(html, /选择效果数量/);
+  assert.match(html, /一键随机创作/);
+  assert.match(html, /COLOR AS A LIVING SYSTEM\./);
+  [2, 3, 4, 5, 6].forEach((count) => {
+    assert.match(html, new RegExp(`>${count}<`));
+  });
+  assert.equal((html.match(/<canvas/g) || []).length, 1);
+  assert.equal(
+    (html.match(/class="preview-card lab-preview-card"/g) || []).length,
+    1,
+  );
+  assert.match(html, /class="lab-recipe"/);
+});
+
+test("the gallery links to the random mix lab", async () => {
+  const response = await render("/");
+  const html = await response.text();
+
+  assert.match(html, /href="\/lab"[^>]*>随机实验室</);
+});
+
+test("the lab layout keeps one 400 by 100 card and accessible controls", async () => {
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+
+  assert.match(css, /\.lab-shell\s*\{/);
+  assert.match(css, /\.effect-count\s*\{/);
+  assert.match(css, /\.lab-preview-card\s*\{[^}]*--card-width:\s*400px;[^}]*--card-height:\s*100px;/s);
+  assert.match(css, /\.effect-count button\s*\{[^}]*min-height:\s*44px;/s);
+  assert.match(css, /\.lab-recipe\s*\{/);
+  assert.match(
+    css,
+    /@media \(max-width: 430px\)[\s\S]*\.lab-card-stage\s*\{[^}]*width:\s*100%/,
   );
 });

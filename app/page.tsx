@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   createGallery,
   DEFAULT_CARD_HEIGHT,
@@ -303,6 +304,7 @@ export default function Home() {
               <a className="brand" href="#top" aria-label="SPECTRA FLUX 首页">
                 SPECTRA FLUX
               </a>
+              <Link className="section-link" href="/lab">随机实验室</Link>
               <div className="header-meta">
                 <span>WEBGL MOTION ATLAS</span>
                 <span className="live-dot" aria-hidden="true" />
