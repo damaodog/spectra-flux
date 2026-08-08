@@ -292,73 +292,79 @@ export default function Home() {
   };
 
   return (
-    <main className="studio">
-      <header className="studio-header">
-        <a className="brand" href="#top" aria-label="Luma Lab 首页">LUMA LAB</a>
-        <div className="header-meta">
-          <span>WEBGL SMOKE STUDIES</span>
-          <span className="live-dot" aria-hidden="true" />
-          <span>{playing ? "LIVE" : "PAUSED"}</span>
-        </div>
-      </header>
+    <main className="studio" id="top">
+      <div className="studio-shell">
+        <aside className="control-rail">
+          <div className="control-rail-inner">
+            <header className="studio-header">
+              <a className="brand" href="#top" aria-label="SPECTRA FLUX 首页">
+                SPECTRA FLUX
+              </a>
+              <div className="header-meta">
+                <span>WEBGL MOTION ATLAS</span>
+                <span className="live-dot" aria-hidden="true" />
+                <span>{playing ? "LIVE" : "PAUSED"}</span>
+              </div>
+            </header>
 
-      <section className="intro" id="top">
-        <div>
+            <section className="intro">
           <span className="eyebrow">THIRTY-SIX GENERATIVE MOTION STUDIES / 2026</span>
           <h1>三十六张卡片，<br />三十六种动态。</h1>
-        </div>
-        <p>
-          三页分别探索雾与薄纱、光学材质和流体力场。每页仅驱动十二张卡片，
-          一次随机则会更新全部三十六套配色与细节。
-        </p>
-      </section>
+              <p>
+                三页分别探索雾与薄纱、光学材质和流体力场。每页仅驱动十二张卡片，
+                一次随机则会更新全部三十六套配色与细节。
+              </p>
+            </section>
 
-      <section className="workspace" aria-label="三十六张动态效果卡片">
-        <div className="toolbar" aria-label="常用操作">
-          <button className="button button-primary" onClick={randomizeAll}>
-            <span aria-hidden="true">✦</span> 一键全部随机
-          </button>
-          <button className="button" onClick={() => setPlaying((value) => !value)}>
-            {playing ? "暂停" : "播放"}
-          </button>
-          <button
-            className="button button-quiet"
-            onClick={() => {
-              setCards(makeCards(20260807));
-              setPageIndex(0);
-              setNotice("已恢复三十六款默认动态");
-            }}
-          >
-            重置
-          </button>
-          <span className="toolbar-status" aria-live="polite">{notice}</span>
-        </div>
+            <div className="toolbar" aria-label="常用操作">
+              <button className="button button-primary" onClick={randomizeAll}>
+                <span aria-hidden="true">✦</span> 一键全部随机
+              </button>
+              <button className="button" onClick={() => setPlaying((value) => !value)}>
+                {playing ? "暂停" : "播放"}
+              </button>
+              <button
+                className="button button-quiet"
+                onClick={() => {
+                  setCards(makeCards(20260807));
+                  setPageIndex(0);
+                  setNotice("已恢复三十六款默认动态");
+                }}
+              >
+                重置
+              </button>
+              <span className="toolbar-status" aria-live="polite">{notice}</span>
+            </div>
 
-        <nav className="page-tabs" aria-label="效果分页">
-          {pages.map((page, index) => (
-            <button
-              key={page.range}
-              className="page-tab"
-              aria-current={pageIndex === index ? "page" : undefined}
-              onClick={() => setPageIndex(index)}
-            >
-              <span>{page.range}</span>
-              <small>{page.title}</small>
-            </button>
-          ))}
-        </nav>
+            <nav className="page-tabs" aria-label="效果分页">
+              {pages.map((page, index) => (
+                <button
+                  key={page.range}
+                  className="page-tab"
+                  aria-current={pageIndex === index ? "page" : undefined}
+                  onClick={() => setPageIndex(index)}
+                >
+                  <span>{page.range}</span>
+                  <small>{page.title}</small>
+                </button>
+              ))}
+            </nav>
 
-        <AtlasGallery
-          key={pageIndex}
-          configs={visibleCards}
-          playing={playing}
-        />
-      </section>
+            <footer>
+              <span>ONE WEBGL CONTEXT · THIRTY-SIX MOTION STUDIES</span>
+              <span>400 × 100 · COLOR AREA 75%</span>
+            </footer>
+          </div>
+        </aside>
 
-      <footer>
-        <span>ONE WEBGL CONTEXT · THIRTY-SIX MOTION STUDIES</span>
-        <span>400 × 100 · COLOR AREA 75%</span>
-      </footer>
+        <section className="gallery-panel workspace" aria-label="三十六张动态效果卡片">
+          <AtlasGallery
+            key={pageIndex}
+            configs={visibleCards}
+            playing={playing}
+          />
+        </section>
+      </div>
     </main>
   );
 }

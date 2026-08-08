@@ -27,7 +27,13 @@ test("server-renders the WebGL card generator", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /<title>LUMA LAB — WebGL Card Generator<\/title>/i);
+  assert.match(html, /<title>SPECTRA FLUX — Generative Motion Atlas<\/title>/i);
+  assert.match(html, />SPECTRA FLUX<\/a>/);
+  assert.match(html, /class="studio-shell"/);
+  assert.match(html, /class="control-rail"/);
+  assert.match(html, /class="control-rail-inner"/);
+  assert.match(html, /class="gallery-panel workspace"/);
+  assert.doesNotMatch(html, />LUMA LAB<\/a>/);
   assert.match(html, /COLOR AS A LIVING SYSTEM\./);
   assert.match(html, /一键全部随机/);
   ["01–12", "13–24", "25–36"].forEach((label) => {
