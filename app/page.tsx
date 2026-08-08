@@ -30,10 +30,10 @@ const sharedInitial = {
 };
 
 const makeCards = (seed: number): CardConfig[] =>
-  createGallery(seed).map((visual, variant) => ({
+  createGallery(seed).map((visual) => ({
     ...sharedInitial,
     ...visual,
-    label: `STYLE ${String(variant + 1).padStart(2, "0")} · ${MOTION_STUDIES[variant].name}`,
+    label: `STYLE ${String(visual.studyId + 1).padStart(2, "0")} · ${MOTION_STUDIES[visual.studyId].name}`,
   }));
 
 type GalleryProps = {
@@ -230,11 +230,11 @@ function AtlasGallery({ configs, playing }: GalleryProps) {
           "--card-width": `${config.width}px`,
           "--card-height": `${config.height}px`,
         } as CSSProperties;
-        const studyNumber = String(config.variant + 1).padStart(2, "0");
-        const studyName = MOTION_STUDIES[config.variant].name;
+        const studyNumber = String(config.studyId + 1).padStart(2, "0");
+        const studyName = MOTION_STUDIES[config.studyId].name;
 
         return (
-          <div className="card-study" key={config.variant}>
+          <div className="card-study" key={config.studyId}>
             <span className="study-meta">
               {`${studyNumber} · ${studyName}`}
             </span>

@@ -17,6 +17,18 @@ import {
   getMotionPage,
 } from "../app/motion-catalog.ts";
 
+const expectedV2Names = [
+  "柔雾扩散", "横向薄纱", "斜向漂移", "急速奔流",
+  "双向潮缝", "织带交叠", "剪切尾流", "云脊翻涌",
+  "绸带塌缩", "丝线回声", "逆层卷吸", "雾幕呼吸",
+  "油膜涌色", "柔焦色蚀", "焦散折叠", "玻璃对撞",
+  "棱镜绽放", "珠光脉冲", "蛋白石裂隙", "虹彩虹吸",
+  "折射泡沫", "发光膜面", "柔波干涉", "虹彩脉络",
+  "液面干涉", "相位潮汐", "细胞融汇", "涡旋合并",
+  "射流撞击", "冲击环", "逆流撕裂", "黏性坍缩",
+  "边界卷起", "密度呼吸", "潮汐剪切", "湍流编织",
+];
+
 test("createPreset is deterministic for a seed", () => {
   assert.deepEqual(createPreset(2026), createPreset(2026));
   assert.notDeepEqual(createPreset(2026), createPreset(2027));
@@ -32,10 +44,32 @@ test("the catalog exposes thirty-six stable motion identities", () => {
   assert.equal(MOTION_STUDIES.length, 36);
   assert.equal(new Set(MOTION_STUDIES.map(({ id }) => id)).size, 36);
   assert.equal(new Set(MOTION_STUDIES.map(({ name }) => name)).size, 36);
+});
+
+test("the V2 catalog keeps the approved studies first in each chapter", () => {
+  assert.deepEqual(MOTION_STUDIES.map(({ name }) => name), expectedV2Names);
   assert.deepEqual(
-    [0, 2, 4, 10].map((index) => MOTION_STUDIES[index].name),
-    ["柔雾扩散", "横向薄纱", "斜向漂移", "急速奔流"],
+    [0, 1, 2, 3, 12, 13, 24, 25, 26].map((index) => {
+      const study = MOTION_STUDIES[index];
+      return [study.shaderVariant, study.kernel, study.speed];
+    }),
+    [
+      [0, 0, null], [2, 0, null], [4, 0, null], [10, 0, 1.6],
+      [12, 2, 0.64], [21, 5, 0.48],
+      [29, 10, 0.8], [31, 10, 0.52], [33, 9, 0.6],
+    ],
   );
+});
+
+test("gallery display identity is independent from shader identity", () => {
+  const gallery = createGallery(2026);
+  assert.deepEqual(
+    gallery.map(({ studyId }) => studyId),
+    Array.from({ length: 36 }, (_, index) => index),
+  );
+  assert.deepEqual(gallery.slice(0, 4).map(({ variant }) => variant), [0, 2, 4, 10]);
+  assert.deepEqual(gallery.slice(12, 14).map(({ variant }) => variant), [12, 21]);
+  assert.deepEqual(gallery.slice(24, 27).map(({ variant }) => variant), [29, 31, 33]);
 });
 
 test("the catalog splits into three exact pages", () => {
@@ -59,8 +93,12 @@ test("createGallery returns thirty-six deterministic configured studies", () => 
   assert.equal(gallery.length, 36);
   assert.equal(gallery.length, SMOKE_VARIANT_COUNT);
   assert.deepEqual(
-    gallery.map((card) => card.variant),
+    gallery.map((card) => card.studyId),
     Array.from({ length: 36 }, (_, index) => index),
+  );
+  assert.deepEqual(
+    gallery.map((card) => card.variant),
+    MOTION_STUDIES.map((study) => study.shaderVariant),
   );
   assert.equal(new Set(gallery.map((card) => card.seed)).size, 36);
   assert.deepEqual(gallery, createGallery(2026));
@@ -95,6 +133,7 @@ test("smoke animation uses the shared eight-times scale", () => {
     radius: 54,
     width: 400,
     height: 100,
+    studyId: 0,
     variant: 0,
     kernel: 0,
     params: [0, 0, 0, 0],
@@ -116,6 +155,7 @@ test("buildEmbed escapes copy and has no network dependency", () => {
     radius: 64,
     width: 800,
     height: 300,
+    studyId: 1,
     variant: 1,
     kernel: 1,
     params: [0.92, 0.48, 0.22, 0.74],
@@ -194,6 +234,7 @@ test("embed transfers kernel tuning to WebGL", () => {
     radius: 54,
     width: 400,
     height: 100,
+    studyId: 12,
     variant: 12,
     kernel: 2,
     params: [1.18, 0.74, 0.34, 0.62],

@@ -12,6 +12,7 @@ export type CardConfig = {
   radius: number;
   width: number;
   height: number;
+  studyId: number;
   variant: number;
   kernel: number;
   params: readonly [number, number, number, number];
@@ -510,16 +511,17 @@ export function createPreset(seed: number) {
 }
 
 export function createGallery(seed: number) {
-  return MOTION_STUDIES.map((study, variant) => {
-    const cardSeed = (seed + Math.imul(variant + 1, 0x9e3779b1)) >>> 0;
+  return MOTION_STUDIES.map((motionStudy) => {
+    const cardSeed = (seed + Math.imul(motionStudy.id + 1, 0x9e3779b1)) >>> 0;
     const preset = createPreset(cardSeed);
     return {
       ...preset,
-      speed: study.speed ?? preset.speed,
+      speed: motionStudy.speed ?? preset.speed,
       seed: cardSeed,
-      variant,
-      kernel: study.kernel,
-      params: study.params,
+      studyId: motionStudy.id,
+      variant: motionStudy.shaderVariant,
+      kernel: motionStudy.kernel,
+      params: motionStudy.params,
     };
   });
 }

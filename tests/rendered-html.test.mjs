@@ -41,17 +41,17 @@ test("server-renders the WebGL card generator", async () => {
   assert.equal((html.match(/class="card-meta"/g) || []).length, 0);
   const studyMeta = [
     "01 · 柔雾扩散",
-    "02 · 薄纱碰撞",
-    "03 · 横向薄纱",
-    "04 · 薄纱断层",
-    "05 · 斜向漂移",
-    "06 · 丝流拉伸",
-    "07 · 双层回流",
-    "08 · 绸带折返",
-    "09 · 墨丝破浪",
-    "10 · 层云错位",
-    "11 · 急速奔流",
-    "12 · 慢纱呼吸",
+    "02 · 横向薄纱",
+    "03 · 斜向漂移",
+    "04 · 急速奔流",
+    "05 · 双向潮缝",
+    "06 · 织带交叠",
+    "07 · 剪切尾流",
+    "08 · 云脊翻涌",
+    "09 · 绸带塌缩",
+    "10 · 丝线回声",
+    "11 · 逆层卷吸",
+    "12 · 雾幕呼吸",
   ];
   studyMeta.forEach((label) => assert.match(html, new RegExp(label)));
   assert.equal((html.match(/--card-width:400px/g) || []).length, 12);
@@ -95,6 +95,9 @@ test("the gallery shares one WebGL atlas across twelve 2D canvases", async () =>
     /aria-current=\{pageIndex === index \? "page" : undefined\}/,
   );
   assert.match(source, /setPageIndex\(0\)/);
+  assert.match(source, /const studyNumber = String\(config\.studyId \+ 1\)/);
+  assert.match(source, /const studyName = MOTION_STUDIES\[config\.studyId\]\.name/);
+  assert.match(source, /key=\{config\.studyId\}/);
   assert.doesNotMatch(source, /function WebGLPreview|activeIndex|style-tabs/);
 });
 
