@@ -272,10 +272,12 @@ export default function Home() {
   const visibleCards = cards.slice(pageStart, pageStart + MOTION_PAGE_SIZE);
 
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const frame = requestAnimationFrame(() => {
       setPlaying(false);
       setNotice("已按系统设置暂停动画");
-    }
+    });
+    return () => cancelAnimationFrame(frame);
   }, []);
 
   const randomizeAll = () => {
