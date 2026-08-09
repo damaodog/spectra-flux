@@ -27,7 +27,8 @@ test("server-renders the empty curated homepage", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /<title>SPECTRA FLUX — Generative Motion Atlas<\/title>/i);
+  assert.match(html, /<title>SPECTRA FLUX — Generative Motion Studio<\/title>/i);
+  assert.match(html, /144 种 WebGL 单效果/);
   assert.match(html, />SPECTRA FLUX<\/a>/);
   assert.match(html, /class="studio-shell"/);
   assert.match(html, /class="control-rail"/);
@@ -268,5 +269,27 @@ test("the lab layout keeps one 400 by 100 card and accessible controls", async (
   assert.match(
     css,
     /@media \(max-width: 430px\)[\s\S]*\.lab-card-stage\s*\{[^}]*width:\s*100%/,
+  );
+});
+
+test("curation and lab controls keep the restrained responsive visual system", async () => {
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+
+  assert.match(css, /\.card-actions\s*\{[^}]*display:\s*flex;/s);
+  assert.match(css, /\.card-actions button\s*\{[^}]*min-height:\s*44px;/s);
+  assert.match(css, /\.danger-action\s*\{/);
+  assert.match(css, /\.empty-showcase\s*\{/);
+  assert.match(css, /\.lab-settings\s*\{/);
+  assert.match(css, /\.mix-intensity button\s*\{[^}]*min-height:\s*44px;/s);
+  assert.match(css, /\.speed-bounds\s*\{/);
+  assert.match(css, /\.palette-direction select\s*\{[^}]*min-height:\s*44px;/s);
+  assert.match(css, /\.recipe-summary\s*\{/);
+  assert.match(
+    css,
+    /\.effect-count > div\s*\{[^}]*grid-template-columns:\s*repeat\(6,\s*1fr\)/s,
+  );
+  assert.match(
+    css,
+    /@media \(max-width: 760px\)[\s\S]*\.empty-showcase\s*\{[^}]*padding:/,
   );
 });

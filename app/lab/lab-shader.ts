@@ -18,7 +18,7 @@ if (
   throw new Error("The atlas shader no longer exposes the expected study body");
 }
 
-// ponytail: reuse the validated 72-study body; split shared GLSL only if a third renderer appears.
+// ponytail: reuse the validated 144-study body; split shared GLSL only if a third renderer appears.
 const studyFunctions = FRAGMENT_SHADER.slice(functionsStart, mainStart);
 const studyBody = FRAGMENT_SHADER.slice(bodyStart, outputStart);
 
