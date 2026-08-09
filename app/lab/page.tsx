@@ -1,6 +1,6 @@
 "use client";
+/* eslint-disable @next/next/no-html-link-for-pages -- vinext production RSC navigation is broken; native anchors are intentional. */
 
-import Link from "next/link";
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
 import { useAdmin } from "../admin/use-admin";
@@ -162,15 +162,15 @@ export default function LabPage() {
         <aside className="control-rail">
           <div className="control-rail-inner">
             <header className="studio-header">
-              <Link className="brand" href="/" aria-label="返回 SPECTRA FLUX 首页">
+              <a className="brand" href="/" aria-label="返回 SPECTRA FLUX 首页">
                 SPECTRA FLUX
-              </Link>
-              <Link className="section-link" href="/">
+              </a>
+              <a className="section-link" href="/">
                 策展首页
-              </Link>
-              <Link className="section-link" href="/library">
+              </a>
+              <a className="section-link" href="/library">
                 效果库
-              </Link>
+              </a>
             </header>
 
             <section className="intro lab-intro">

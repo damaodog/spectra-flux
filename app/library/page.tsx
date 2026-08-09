@@ -1,6 +1,6 @@
 "use client";
+/* eslint-disable @next/next/no-html-link-for-pages -- vinext production RSC navigation is broken; native anchors are intentional. */
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useAdmin } from "../admin/use-admin";
 import {
@@ -85,15 +85,15 @@ export default function LibraryPage() {
         <aside className="control-rail">
           <div className="control-rail-inner">
             <header className="studio-header">
-              <Link className="brand" href="/" aria-label="返回 SPECTRA FLUX 首页">
+              <a className="brand" href="/" aria-label="返回 SPECTRA FLUX 首页">
                 SPECTRA FLUX
-              </Link>
-              <Link className="section-link" href="/">
+              </a>
+              <a className="section-link" href="/">
                 策展首页
-              </Link>
-              <Link className="section-link" href="/lab">
+              </a>
+              <a className="section-link" href="/lab">
                 随机实验室
-              </Link>
+              </a>
             </header>
 
             <section className="intro">
@@ -174,9 +174,9 @@ export default function LibraryPage() {
             <div className="empty-showcase">
               <h2>效果库已清空</h2>
               <p>随机实验室已无可用动态，已保存到首页的作品不会受影响。</p>
-              <Link className="button" href="/">
+              <a className="button" href="/">
                 返回策展首页
-              </Link>
+              </a>
             </div>
           )}
         </section>

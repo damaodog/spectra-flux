@@ -76,3 +76,18 @@ test("operator documentation explains shared curation, secrets, and embed usage"
   assert.match(packageJson.scripts.test, /admin-auth\.test\.mjs/);
   assert.match(packageJson.scripts["build:cloudflare"], /SPECTRA_CURATION_KV_ID/);
 });
+
+test("cross-page navigation uses native anchors in the production Worker", async () => {
+  const pages = await Promise.all([
+    readFile("app/page.tsx", "utf8"),
+    readFile("app/library/page.tsx", "utf8"),
+    readFile("app/lab/page.tsx", "utf8"),
+  ]);
+  for (const source of pages) {
+    assert.doesNotMatch(source, /from "next\/link"/);
+  }
+  assert.match(pages[0], /<a className="section-link" href="\/library">/);
+  assert.match(pages[0], /<a className="button button-primary" href="\/library">/);
+  assert.match(pages[1], /<a className="brand" href="\/"/);
+  assert.match(pages[2], /<a className="brand" href="\/"/);
+});

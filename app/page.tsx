@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AdminPanel } from "./admin/admin-panel";
 import { useAdmin } from "./admin/use-admin";
@@ -69,8 +68,8 @@ export default function Home() {
           <div className="control-rail-inner">
             <header className="studio-header">
               <a className="brand" href="#top" aria-label="SPECTRA FLUX 首页">SPECTRA FLUX</a>
-              <Link className="section-link" href="/library">效果库</Link>
-              <Link className="section-link" href="/lab">随机实验室</Link>
+              <a className="section-link" href="/library">效果库</a>
+              <a className="section-link" href="/lab">随机实验室</a>
             </header>
 
             <section className="intro">
@@ -130,8 +129,8 @@ export default function Home() {
               <h2>尚未添加动态作品</h2>
               <p>先浏览单效果，或让多个动态在同一张卡片里融合。</p>
               <div className="empty-actions">
-                <Link className="button button-primary" href="/library">进入效果库</Link>
-                <Link className="button" href="/lab">开始随机创作</Link>
+                <a className="button button-primary" href="/library">进入效果库</a>
+                <a className="button" href="/lab">开始随机创作</a>
               </div>
             </div>
           )}
