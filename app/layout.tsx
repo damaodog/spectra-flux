@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SPECTRA FLUX — Generative Motion Atlas",
-  description: "SPECTRA FLUX 光谱流域：七十二种 WebGL 色彩动态实验。",
+  title: "SPECTRA FLUX — Generative Motion Studio",
+  description: "SPECTRA FLUX：144 种 WebGL 单效果、随机混合实验室与本地策展首页。",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",

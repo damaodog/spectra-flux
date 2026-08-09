@@ -565,6 +565,67 @@ vec4 cosmicWebField(vec2 p, float t, vec4 q){
   return vec4(webA * 0.72, webB * 0.72, junction, node * pulse);
 }
 
+vec4 liquidMetalField(vec2 p, float t, vec4 q){
+  vec2 drift = vec2(t * (0.035 + q.y * 0.018), -t * 0.026);
+  float body = fbm(p * vec2(1.1 + q.x * 0.28, 2.2 + q.z * 0.34) + drift);
+  float fold = p.y - sin(p.x * (1.4 + q.x) - t * 0.12) * (0.12 + q.w * 0.06);
+  float poolA = smoothstep(0.28, 0.72, body - fold * 0.32);
+  float poolB = smoothstep(0.31, 0.75, 1.0 - body + fold * 0.26);
+  float seam = softLine(poolA - poolB, 0.04, 0.16);
+  float highlight = softLine(body - 0.58, 0.035, 0.11);
+  return vec4(poolA, poolB, seam, highlight);
+}
+
+vec4 biomorphicField(vec2 p, float t, vec4 q){
+  vec2 flow = p * (1.4 + q.x * 0.32) + vec2(t * 0.028, -t * 0.022);
+  float cellA = fbm(flow + vec2(sin(t * 0.08), cos(t * 0.07)) * 0.22);
+  float cellB = fbm(flow.yx * 1.17 + vec2(-t * 0.024, t * 0.019) + q.y);
+  float membrane = softLine(cellA - cellB, 0.045 + q.w * 0.012, 0.18);
+  float growth = smoothstep(0.32, 0.72, cellA + cellB * 0.34);
+  float pulse = 0.5 + 0.5 * sin(t * (0.055 + q.z * 0.018));
+  return vec4(growth, smoothstep(0.34, 0.76, cellB), membrane, membrane * pulse);
+}
+
+vec4 geologicalField(vec2 p, float t, vec4 q){
+  float strataNoise = fbm(p * vec2(0.72, 3.4 + q.x) + vec2(t * 0.018, -t * 0.012));
+  float pressure = p.y + sin(p.x * (1.1 + q.y) - t * 0.05) * 0.18;
+  float layerA = band(pressure + (strataNoise - 0.5) * 0.38, 0.14 + q.w * 0.02);
+  float layerB = band(pressure - 0.34 + (strataNoise - 0.5) * 0.24, 0.12);
+  float fault = softLine(p.x * (0.42 + q.z * 0.08) - p.y * 0.27 + sin(t * 0.04) * 0.08, 0.035, 0.10);
+  return vec4(layerA, layerB, fault, max(layerA, layerB) * fault);
+}
+
+vec4 acousticField(vec2 p, float t, vec4 q){
+  float phaseA = p.x * (2.0 + q.x) + p.y * (1.2 + q.y * 0.4) - t * 0.10;
+  float phaseB = p.x * (1.3 + q.z * 0.5) - p.y * 2.1 + t * 0.073;
+  float waveA = 0.5 + 0.5 * sin(phaseA);
+  float waveB = 0.5 + 0.5 * sin(phaseB);
+  float node = softLine(waveA - waveB, 0.045, 0.20);
+  float pressure = smoothstep(0.28, 0.76, waveA * 0.58 + waveB * 0.42);
+  float echo = fbm(p * 1.4 + vec2(t * 0.018, -t * 0.014));
+  return vec4(waveA, waveB, node, pressure * (0.62 + echo * 0.38));
+}
+
+vec4 topologyField(vec2 p, float t, vec4 q){
+  float bend = sin(p.x * (1.0 + q.x) + t * 0.055) * (0.16 + q.w * 0.04);
+  vec2 folded = vec2(p.x + sin(p.y * 1.7 - t * 0.04) * 0.16, p.y + bend);
+  float surfaceA = fbm(folded * (1.1 + q.y * 0.25) + vec2(t * 0.02, 0.0));
+  float surfaceB = fbm(folded.yx * (1.25 + q.z * 0.18) - vec2(0.0, t * 0.018));
+  float boundary = softLine(surfaceA - surfaceB, 0.05, 0.17);
+  float opening = smoothstep(0.22, 0.68, abs(surfaceA + surfaceB - 1.0));
+  return vec4(surfaceA, surfaceB, boundary, opening * boundary);
+}
+
+vec4 phaseChangeField(vec2 p, float t, vec4 q){
+  float temperature = fbm(p * vec2(1.0 + q.x * 0.22, 2.1 + q.y * 0.28) + vec2(t * 0.024, -t * 0.017));
+  float threshold = 0.48 + sin(p.x * (1.2 + q.z) - t * 0.06) * (0.08 + q.w * 0.025);
+  float solid = 1.0 - smoothstep(threshold - 0.16, threshold + 0.06, temperature);
+  float liquid = smoothstep(threshold - 0.05, threshold + 0.18, temperature);
+  float boundary = softLine(temperature - threshold, 0.025, 0.13);
+  float vapor = smoothstep(0.62, 0.88, temperature + fbm(p * 2.8 - t * 0.012) * 0.16);
+  return vec4(solid, liquid, boundary, vapor);
+}
+
 void main(){
   vec2 localFragCoord = gl_FragCoord.xy - viewportOrigin;
   vec2 uv = localFragCoord / resolution.xy;
@@ -642,6 +703,12 @@ void main(){
   if(kernel == 42) materialFields = nebulaMergeField(p, flowTime, studyParams);
   if(kernel == 43) materialFields = accretionField(p, flowTime, studyParams);
   if(kernel == 44) materialFields = cosmicWebField(p, flowTime, studyParams);
+  if(kernel == 45) materialFields = liquidMetalField(p, flowTime, studyParams);
+  if(kernel == 46) materialFields = biomorphicField(p, flowTime, studyParams);
+  if(kernel == 47) materialFields = geologicalField(p, flowTime, studyParams);
+  if(kernel == 48) materialFields = acousticField(p, flowTime, studyParams);
+  if(kernel == 49) materialFields = topologyField(p, flowTime, studyParams);
+  if(kernel == 50) materialFields = phaseChangeField(p, flowTime, studyParams);
 
   vec2 shape = warped;
   vec2 centerA = vec2(-0.32, 0.16) + macroDrift * vec2(0.18, 0.10);
@@ -873,6 +940,39 @@ void main(){
       color = mix(color, mix(colorA, colorB, 0.52) * 0.62, materialFields.w * 0.34);
     }
   }
+  bool liquidMetalKernel = kernel == 45;
+  if(liquidMetalKernel){
+    float mirrorEdge = smoothstep(0.30, 0.90, max(materialFields.z, materialFields.w));
+    vec3 reflected = mix(colorA, colorB, materialFields.y);
+    color = mix(color, reflected, mirrorEdge * 0.22);
+    color = mix(color, vec3(1.0), materialFields.w * 0.18);
+  }
+  bool biomorphicKernel = kernel == 46;
+  if(biomorphicKernel){
+    float membrane = smoothstep(0.26, 0.88, materialFields.z);
+    color = mix(color, mix(colorA, colorB, materialFields.y), membrane * 0.18);
+  }
+  bool geologicalKernel = kernel == 47;
+  if(geologicalKernel){
+    float pressureEdge = smoothstep(0.24, 0.86, materialFields.w);
+    color = mix(color, mix(colorA, colorB, 0.42) * 0.88, pressureEdge * 0.22);
+  }
+  bool acousticKernel = kernel == 48;
+  if(acousticKernel){
+    float resonance = smoothstep(0.30, 0.90, materialFields.z);
+    color = mix(color, mix(colorA, colorB, materialFields.x), resonance * 0.18);
+  }
+  bool topologyKernel = kernel == 49;
+  if(topologyKernel){
+    float boundary = smoothstep(0.28, 0.88, materialFields.z);
+    color = mix(color, mix(colorA, colorB, materialFields.y), boundary * 0.20);
+  }
+  bool phaseChangeKernel = kernel == 50;
+  if(phaseChangeKernel){
+    float phaseBoundary = smoothstep(0.24, 0.86, materialFields.z);
+    color = mix(color, mix(colorA, colorB, materialFields.y), phaseBoundary * 0.20);
+    color = mix(color, vec3(1.0), materialFields.w * 0.10);
+  }
   bool forceKernel = (kernel >= 7 && kernel <= 12) || (kernel >= 22 && kernel <= 26);
   if(forceKernel){
     float forceOverlap = min(materialFields.x, materialFields.y);
@@ -1014,7 +1114,7 @@ export function buildEmbed(config: CardConfig) {
   const width = clamp(config.width, 480, 1600);
   const height = clamp(config.height, 220, 900);
   const variantValue = Math.trunc(clamp(config.variant, 0, SMOKE_VARIANT_COUNT - 1));
-  const kernelValue = Math.trunc(clamp(config.kernel, 0, 44));
+  const kernelValue = Math.trunc(clamp(config.kernel, 0, 50));
   const params = config.params.map((value) => clamp(value, -2, 2));
   const vertex = JSON.stringify(VERTEX_SHADER);
   const fragment = JSON.stringify(FRAGMENT_SHADER);
