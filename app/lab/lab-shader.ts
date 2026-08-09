@@ -25,6 +25,7 @@ const studyBody = FRAGMENT_SHADER.slice(bodyStart, outputStart);
 export const LAB_FRAGMENT_SHADER = `#version 300 es
 precision highp float;
 uniform vec2 resolution;
+uniform vec2 viewportOrigin;
 uniform float globalTime;
 uniform int layerCount;
 uniform float layerTimes[6];
@@ -80,7 +81,7 @@ vec3 interactLayers(
 }
 
 void main(){
-  vec2 uv = gl_FragCoord.xy / resolution.xy;
+  vec2 uv = (gl_FragCoord.xy - viewportOrigin) / resolution.xy;
   vec3 color = vec3(0.985);
   float accumulatedDensity = 0.0;
   vec2 interactionWarp = vec2(0.0);

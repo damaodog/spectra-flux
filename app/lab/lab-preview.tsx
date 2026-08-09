@@ -108,6 +108,7 @@ export function LabPreview({
 
       const uniforms = {
         resolution: gl.getUniformLocation(program, "resolution"),
+        viewportOrigin: gl.getUniformLocation(program, "viewportOrigin"),
         globalTime: gl.getUniformLocation(program, "globalTime"),
         layerCount: gl.getUniformLocation(program, "layerCount"),
         layerTimes: gl.getUniformLocation(program, "layerTimes[0]"),
@@ -172,6 +173,7 @@ export function LabPreview({
         if (canvas.height !== height) canvas.height = height;
         gl.viewport(0, 0, width, height);
         gl.uniform2f(uniforms.resolution, width, height);
+        gl.uniform2f(uniforms.viewportOrigin, 0, 0);
         drawRef.current?.(performance.now());
       };
 

@@ -8,6 +8,11 @@ import {
 test("shader has six slots and one active-layer loop", () => {
   assert.match(LAB_VERTEX_SHADER, /gl_Position/);
   assert.match(LAB_FRAGMENT_SHADER, /uniform int layerCount;/);
+  assert.match(LAB_FRAGMENT_SHADER, /uniform vec2 viewportOrigin;/);
+  assert.match(
+    LAB_FRAGMENT_SHADER,
+    /vec2 uv = \(gl_FragCoord\.xy - viewportOrigin\) \/ resolution\.xy;/,
+  );
   assert.match(LAB_FRAGMENT_SHADER, /uniform float layerTimes\[6\];/);
   assert.match(LAB_FRAGMENT_SHADER, /uniform int layerKernels\[6\];/);
   assert.match(LAB_FRAGMENT_SHADER, /for\(int i = 0; i < 6; i\+\+\)/);
