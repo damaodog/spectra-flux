@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useAdmin } from "../admin/use-admin";
 import {
   DEFAULT_CARD_HEIGHT,
   DEFAULT_CARD_WIDTH,
@@ -34,7 +35,8 @@ const makeCards = (seed: number): CardConfig[] =>
   }));
 
 export default function LibraryPage() {
-  const { state, hydrated, warning, add, deleteStudy } = useCuration();
+  const admin = useAdmin();
+  const { state, hydrated, saving, warning, add, deleteStudy } = useCuration();
   const [masterSeed, setMasterSeed] = useState(20260807);
   const [playing, setPlaying] = useState(true);
   const [pageIndex, setPageIndex] = useState(0);
@@ -63,13 +65,13 @@ export default function LibraryPage() {
     setNotice(`全部视觉已随机 · ${values[0]}`);
   };
 
-  const addToHome = (config: CardConfig) => {
-    const added = add("library", createSingleEffectRecipe(config));
+  const addToHome = async (config: CardConfig) => {
+    const added = await add("library", createSingleEffectRecipe(config));
     setNotice(added ? `${config.label} 已展示到首页` : `${config.label} 已在首页`);
   };
 
-  const removeStudy = (config: CardConfig) => {
-    deleteStudy(config.studyId);
+  const removeStudy = async (config: CardConfig) => {
+    await deleteStudy(config.studyId);
     const remainingPages = Math.ceil(
       Math.max(0, activeStudies.length - 1) / MOTION_PAGE_SIZE,
     );
@@ -153,20 +155,20 @@ export default function LibraryPage() {
               key={safePageIndex}
               configs={visibleCards}
               playing={playing}
-              actions={(config) => (
+              actions={admin.authenticated ? (config) => (
                 <>
-                  <button disabled={!hydrated} onClick={() => addToHome(config)}>
+                  <button disabled={!hydrated || saving} onClick={() => void addToHome(config)}>
                     展示到首页
                   </button>
                   <button
                     className="danger-action"
-                    disabled={!hydrated}
-                    onClick={() => removeStudy(config)}
+                    disabled={!hydrated || saving}
+                    onClick={() => void removeStudy(config)}
                   >
                     删除
                   </button>
                 </>
-              )}
+              ) : undefined}
             />
           ) : (
             <div className="empty-showcase">

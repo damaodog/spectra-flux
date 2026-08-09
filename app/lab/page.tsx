@@ -3,16 +3,23 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
+import { useAdmin } from "../admin/use-admin";
 import { useCuration } from "../curation/use-curation";
+import { CopyEmbedButton } from "../embed/copy-embed-button";
 import { getActiveStudies } from "../library/library-core";
 import {
   DEFAULT_LAB_SETTINGS,
   INTERACTION_LABELS,
   createLabRecipe,
   formatLabRecipe,
+  type CompositionDirection,
+  type DensityDirection,
+  type EdgeDirection,
+  type InteractionBias,
   type LabSettings,
   type MixIntensity,
   type PaletteDirection,
+  type RhythmDirection,
 } from "./lab-core";
 import { LabPreview } from "./lab-preview";
 
@@ -30,11 +37,80 @@ const paletteOptions: { value: PaletteDirection; label: string }[] = [
   { value: "dominant-highlight", label: "主色高光" },
   { value: "low-saturation-ink", label: "低饱和墨流" },
 ];
-const initialRecipe = createLabRecipe(DEFAULT_LAB_SETTINGS, 20260808)!;
+const interactionOptions: { value: InteractionBias; label: string }[] = [
+  { value: "random", label: "完全随机" },
+  { value: "free", label: "自由混合" },
+  { value: "blend", label: "融合优先" },
+  { value: "collision", label: "撞击优先" },
+  { value: "weave", label: "交缠优先" },
+  { value: "erode", label: "吞噬优先" },
+  { value: "light", label: "光叠优先" },
+  { value: "difference", label: "差异切割" },
+];
+const rhythmOptions: { value: RhythmDirection; label: string }[] = [
+  { value: "random", label: "完全随机" },
+  { value: "wander", label: "缓慢漫游" },
+  { value: "breath", label: "呼吸起伏" },
+  { value: "alternating", label: "忽快忽慢" },
+  { value: "pulse", label: "脉冲撞击" },
+  { value: "flow", label: "持续涌流" },
+];
+const compositionOptions: { value: CompositionDirection; label: string }[] = [
+  { value: "random", label: "完全随机" },
+  { value: "automatic", label: "自动构图" },
+  { value: "horizontal", label: "横向流动" },
+  { value: "center-collision", label: "中心碰撞" },
+  { value: "pincer", label: "两侧夹击" },
+  { value: "vortex", label: "旋涡汇聚" },
+  { value: "interlace", label: "交错穿插" },
+];
+const densityOptions: { value: DensityDirection; label: string }[] = [
+  { value: "random", label: "完全随机" },
+  { value: "thin", label: "轻薄留白" },
+  { value: "standard", label: "标准密度" },
+  { value: "dense", label: "浓密饱满" },
+];
+const edgeOptions: { value: EdgeDirection; label: string }[] = [
+  { value: "random", label: "完全随机" },
+  { value: "soft", label: "柔雾边缘" },
+  { value: "mixed", label: "软硬混合" },
+  { value: "sharp", label: "锋利纹路" },
+];
+const initialSettings: LabSettings = {
+  ...DEFAULT_LAB_SETTINGS,
+  interactionBias: "random",
+  rhythm: "random",
+  composition: "random",
+  density: "random",
+  edge: "random",
+};
+const initialRecipe = createLabRecipe(initialSettings, 20260808)!;
+
+function ConstraintSelect<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange(value: T): void;
+}) {
+  return (
+    <label>
+      <span>{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value as T)}>
+        {options.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}
+      </select>
+    </label>
+  );
+}
 
 export default function LabPage() {
-  const { state, hydrated, warning, add } = useCuration();
-  const [settings, setSettings] = useState<LabSettings>(DEFAULT_LAB_SETTINGS);
+  const admin = useAdmin();
+  const { state, hydrated, saving, warning, add } = useCuration();
+  const [settings, setSettings] = useState<LabSettings>(initialSettings);
   const [recipe, setRecipe] = useState(initialRecipe);
   const [playing, setPlaying] = useState(true);
   const [fallback, setFallback] = useState(false);
@@ -67,8 +143,8 @@ export default function LabPage() {
     setNotice(`${next.effectCount} 种效果已重新混合`);
   };
 
-  const addToShowcase = () => {
-    const added = add("lab", recipe);
+  const addToShowcase = async () => {
+    const added = await add("lab", recipe);
     setNotice(added ? "已展示到首页" : "这张配方已在首页");
   };
 
@@ -196,6 +272,42 @@ export default function LabPage() {
                   ))}
                 </select>
               </label>
+
+              <details className="advanced-settings">
+                <summary>更多随机约束</summary>
+                <div>
+                  <ConstraintSelect
+                    label="互动方式"
+                    value={settings.interactionBias ?? "random"}
+                    options={interactionOptions}
+                    onChange={(interactionBias) => updateSettings({ interactionBias })}
+                  />
+                  <ConstraintSelect
+                    label="节奏方式"
+                    value={settings.rhythm ?? "random"}
+                    options={rhythmOptions}
+                    onChange={(rhythm) => updateSettings({ rhythm })}
+                  />
+                  <ConstraintSelect
+                    label="构图方式"
+                    value={settings.composition ?? "random"}
+                    options={compositionOptions}
+                    onChange={(composition) => updateSettings({ composition })}
+                  />
+                  <ConstraintSelect
+                    label="视觉密度"
+                    value={settings.density ?? "random"}
+                    options={densityOptions}
+                    onChange={(density) => updateSettings({ density })}
+                  />
+                  <ConstraintSelect
+                    label="边缘质感"
+                    value={settings.edge ?? "random"}
+                    options={edgeOptions}
+                    onChange={(edge) => updateSettings({ edge })}
+                  />
+                </div>
+              </details>
             </div>
 
             <div className="toolbar lab-toolbar" aria-label="随机实验室操作">
@@ -209,9 +321,12 @@ export default function LabPage() {
               <button className="button" onClick={() => setPlaying((value) => !value)}>
                 {playing ? "暂停" : "继续"}
               </button>
-              <button className="button" onClick={addToShowcase} disabled={!hydrated}>
-                展示到首页
-              </button>
+              <CopyEmbedButton recipe={recipe} />
+              {admin.authenticated ? (
+                <button className="button" onClick={() => void addToShowcase()} disabled={!hydrated || saving}>
+                  展示到首页
+                </button>
+              ) : null}
               <span className="toolbar-status" aria-live="polite">
                 {warning ?? (fallback ? "静态预览" : notice)}
               </span>
@@ -255,6 +370,11 @@ export default function LabPage() {
               <dl className="recipe-summary">
                 <div><dt>混合</dt><dd>{intensityOptions.find(({ value }) => value === recipe.mixIntensity)?.label}</dd></div>
                 <div><dt>配色</dt><dd>{recipe.paletteName}</dd></div>
+                <div><dt>互动</dt><dd>{interactionOptions.find(({ value }) => value === recipe.interactionBias)?.label}</dd></div>
+                <div><dt>节奏</dt><dd>{rhythmOptions.find(({ value }) => value === recipe.rhythm)?.label}</dd></div>
+                <div><dt>构图</dt><dd>{compositionOptions.find(({ value }) => value === recipe.composition)?.label}</dd></div>
+                <div><dt>密度</dt><dd>{densityOptions.find(({ value }) => value === recipe.density)?.label}</dd></div>
+                <div><dt>边缘</dt><dd>{edgeOptions.find(({ value }) => value === recipe.edge)?.label}</dd></div>
               </dl>
               <ol>
                 {recipe.layers.map((layer, index) => (

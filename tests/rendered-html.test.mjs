@@ -56,14 +56,15 @@ test("server-renders the empty curated homepage", async () => {
   assert.match(html, /尚未添加动态作品/);
   assert.match(html, /进入效果库/);
   assert.match(html, /开始随机创作/);
-  assert.match(html, /导出策展配置/);
+  assert.match(html, />管理</);
+  assert.doesNotMatch(html, /导出策展配置/);
   assert.match(html, /href="\/library"/);
   assert.match(html, /href="\/lab"/);
   assert.equal((html.match(/<canvas/g) || []).length, 0);
   assert.doesNotMatch(html, /一键全部随机/);
 });
 
-test("curated homepage paginates local recipes and exports normalized JSON", async () => {
+test("curated homepage paginates shared recipes and gates management controls", async () => {
   const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
   assert.match(source, /useCuration\(\)/);
   assert.match(source, /state\.showcase\.slice/);
@@ -71,7 +72,8 @@ test("curated homepage paginates local recipes and exports normalized JSON", asy
   assert.match(source, /new Blob\(/);
   assert.match(source, /URL\.createObjectURL\(/);
   assert.match(source, /URL\.revokeObjectURL\(/);
-  assert.match(source, /onRemove=\{removeFromHome\}/);
+  assert.match(source, /admin\.authenticated/);
+  assert.match(source, /onRemove=\{admin\.authenticated \? removeFromHome : undefined\}/);
 });
 
 test("the gallery shares one WebGL atlas across twelve 2D canvases", async () => {
@@ -209,7 +211,7 @@ test("the Cloudflare build keeps custom and workers.dev routes", async () => {
   });
 });
 
-test("server-renders the 144-effect library with external actions", async () => {
+test("server-renders the 144-effect library without visitor management actions", async () => {
   const response = await render("/library");
   assert.equal(response.status, 200);
   const html = await response.text();
@@ -221,12 +223,8 @@ test("server-renders the 144-effect library with external actions", async () => 
   assert.equal((html.match(/class="card-study"/g) || []).length, 12);
   assert.equal((html.match(/class="preview-card"/g) || []).length, 12);
   assert.equal((html.match(/<canvas/g) || []).length, 12);
-  assert.equal((html.match(/>展示到首页<\/button>/g) || []).length, 12);
-  assert.equal((html.match(/>删除<\/button>/g) || []).length, 12);
-  assert.match(
-    html,
-    /<\/article><div class="card-actions">[\s\S]*展示到首页[\s\S]*删除/,
-  );
+  assert.doesNotMatch(html, />展示到首页<\/button>/);
+  assert.doesNotMatch(html, />删除<\/button>/);
 });
 
 test("the lab preview uses one context, one canvas, and integrated clocks", async () => {
@@ -261,10 +259,17 @@ test("server-renders the single-card random mix lab", async () => {
   assert.match(html, /速度下限/);
   assert.match(html, /速度上限/);
   assert.match(html, /配色方向/);
+  assert.match(html, /更多随机约束/);
+  assert.match(html, /互动方式/);
+  assert.match(html, /节奏方式/);
+  assert.match(html, /构图方式/);
+  assert.match(html, /视觉密度/);
+  assert.match(html, /边缘质感/);
   assert.match(html, /柔和/);
   assert.match(html, /均衡/);
   assert.match(html, /激烈/);
-  assert.match(html, /展示到首页/);
+  assert.doesNotMatch(html, /展示到首页/);
+  assert.match(html, /复制 HTML/);
   assert.match(html, /一键随机创作/);
   assert.match(html, /COLOR AS A LIVING SYSTEM\./);
   [1, 2, 3, 4, 5, 6].forEach((count) => {

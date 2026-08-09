@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { useEffect, useRef } from "react";
 import type { ShowcaseEntry } from "../curation/curation-core";
 import { recipeFingerprint } from "../curation/curation-core";
+import { CopyEmbedButton } from "../embed/copy-embed-button";
 import {
   LAB_MAX_LAYERS,
   advancePhaseTimes,
@@ -323,11 +324,12 @@ export function RecipeAtlas({ entries, playing, onRemove }: RecipeAtlasProps) {
                 ))}
               </ol>
             </details>
-            {onRemove ? (
-              <div className="card-actions">
+            <div className="card-actions">
+              <CopyEmbedButton recipe={recipe} />
+              {onRemove ? (
                 <button onClick={() => onRemove(entry.id)}>从首页删除</button>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
         );
       })}
