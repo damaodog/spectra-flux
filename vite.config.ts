@@ -5,6 +5,9 @@ import { sites } from "./build/sites-vite-plugin";
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   "00000000-0000-4000-8000-000000000000";
+const LOCAL_CURATION_KV_ID = "00000000000000000000000000000000";
+const curationKvId =
+  process.env.SPECTRA_CURATION_KV_ID ?? LOCAL_CURATION_KV_ID;
 
 const { d1, r2 } = hostingConfig;
 
@@ -15,11 +18,21 @@ const localBindingConfig = {
   name: "spectra-flux",
   main: "./worker/index.ts",
   compatibility_flags: ["nodejs_compat"],
+  compatibility_date: "2026-08-09",
+  secrets: {
+    required: ["SPECTRA_ADMIN_PASSWORD", "SPECTRA_SESSION_SECRET"],
+  },
   workers_dev: true,
   routes: [
     {
       pattern: "spectra.8538690.xyz",
       custom_domain: true,
+    },
+  ],
+  kv_namespaces: [
+    {
+      binding: "CURATION_KV",
+      id: curationKvId,
     },
   ],
   d1_databases: d1

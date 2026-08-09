@@ -15,6 +15,13 @@ async function render(pathname = "/") {
       ASSETS: {
         fetch: async () => new Response("Not found", { status: 404 }),
       },
+      CURATION_KV: {
+        async get() { return null; },
+        async put() {},
+        async delete() {},
+      },
+      SPECTRA_ADMIN_PASSWORD: "test-password",
+      SPECTRA_SESSION_SECRET: "test-session-secret-with-at-least-32-bytes",
     },
     {
       waitUntil() {},
@@ -22,6 +29,17 @@ async function render(pathname = "/") {
     },
   );
 }
+
+test("built worker routes curation API before the page handler", async () => {
+  const response = await render("/api/curation");
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    ok: true,
+    data: {
+      state: { version: 2, deletedStudyIds: [], showcase: [] },
+    },
+  });
+});
 
 test("server-renders the empty curated homepage", async () => {
   const response = await render();
@@ -180,6 +198,15 @@ test("the Cloudflare build keeps custom and workers.dev routes", async () => {
       custom_domain: true,
     },
   ]);
+  assert.deepEqual(config.kv_namespaces, [
+    {
+      binding: "CURATION_KV",
+      id: "00000000000000000000000000000000",
+    },
+  ]);
+  assert.deepEqual(config.secrets, {
+    required: ["SPECTRA_ADMIN_PASSWORD", "SPECTRA_SESSION_SECRET"],
+  });
 });
 
 test("server-renders the 144-effect library with external actions", async () => {
