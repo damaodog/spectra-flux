@@ -2,10 +2,37 @@ import {
   SMOKE_TIME_SCALE,
   hexToRgb,
   toShaderSeed,
+  type CardConfig,
 } from "../card-core.ts";
 import { MOTION_STUDIES, type MotionStudy } from "../motion-catalog.ts";
 
 export const LAB_MAX_LAYERS = 6;
+
+export type MixIntensity = "soft" | "balanced" | "intense";
+export type PaletteDirection =
+  | "random"
+  | "analogous"
+  | "warm-cool"
+  | "triadic"
+  | "dominant-highlight"
+  | "low-saturation-ink";
+export type RecipePaletteDirection = Exclude<PaletteDirection, "random"> | "snapshot";
+
+export type LabSettings = {
+  effectCount: number;
+  mixIntensity: MixIntensity;
+  speedMin: number;
+  speedMax: number;
+  paletteDirection: PaletteDirection;
+};
+
+export const DEFAULT_LAB_SETTINGS: LabSettings = {
+  effectCount: 3,
+  mixIntensity: "balanced",
+  speedMin: 0.2,
+  speedMax: 1.8,
+  paletteDirection: "random",
+};
 
 export const INTERACTION_LABELS = {
   0: "融合",
@@ -47,13 +74,17 @@ export type LabLayer = {
 export type LabRecipe = {
   seed: number;
   effectCount: number;
+  mixIntensity: MixIntensity;
+  interactionStrength: number;
   paletteName: string;
+  paletteDirection: RecipePaletteDirection;
   palette: string[];
   layers: LabLayer[];
   interactions: InteractionMode[];
 };
 
 export type PackedLabRecipe = {
+  interactionStrength: number;
   variants: Int32Array;
   kernels: Int32Array;
   modes: Int32Array;
@@ -67,13 +98,28 @@ export type PackedLabRecipe = {
 
 type Random = () => number;
 
-const paletteNames = [
-  "邻近雾化",
-  "冷暖对撞",
-  "三角色交缠",
-  "主色高光",
-  "低饱和墨流",
+const concretePaletteDirections = [
+  "analogous",
+  "warm-cool",
+  "triadic",
+  "dominant-highlight",
+  "low-saturation-ink",
 ] as const;
+
+const paletteNames: Record<RecipePaletteDirection, string> = {
+  analogous: "邻近雾化",
+  "warm-cool": "冷暖对撞",
+  triadic: "三角色交缠",
+  "dominant-highlight": "主色高光",
+  "low-saturation-ink": "低饱和墨流",
+  snapshot: "单效果快照",
+};
+
+const intensityRanges = {
+  soft: { intensity: [0.34, 0.62], warp: [0.012, 0.04], strength: 0.72 },
+  balanced: { intensity: [0.45, 0.95], warp: [0.025, 0.1], strength: 1 },
+  intense: { intensity: [0.64, 1], warp: [0.055, 0.14], strength: 1.32 },
+} as const;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
@@ -129,37 +175,50 @@ const hslToHex = (hue: number, saturation: number, lightness: number) => {
     .join("")}`;
 };
 
-const createPalette = (random: Random, effectCount: number) => {
-  const strategy = Math.floor(random() * paletteNames.length);
+const createPalette = (
+  random: Random,
+  effectCount: number,
+  requested: PaletteDirection,
+) => {
+  const direction =
+    requested === "random"
+      ? concretePaletteDirections[
+          Math.floor(random() * concretePaletteDirections.length)
+        ]
+      : requested;
   const count = clamp(Math.max(3, effectCount), 3, LAB_MAX_LAYERS);
   const baseHue = random() * 360;
   const colors = Array.from({ length: count }, (_, index) => {
     const centered = index - (count - 1) / 2;
     const jitter = (random() - 0.5) * 12;
 
-    if (strategy === 0) {
+    if (direction === "analogous") {
       return hslToHex(baseHue + centered * 24 + jitter, 68 + random() * 16, 67 + random() * 9);
     }
-    if (strategy === 1) {
+    if (direction === "warm-cool") {
       const warmHue = 8 + random() * 44;
       const coolHue = 190 + random() * 78;
       return hslToHex(index % 2 === 0 ? warmHue : coolHue, 72 + random() * 18, 62 + random() * 10);
     }
-    if (strategy === 2) {
+    if (direction === "triadic") {
       return hslToHex(baseHue + (index % 3) * 120 + jitter, 66 + random() * 20, 61 + random() * 12);
     }
-    if (strategy === 3) {
+    if (direction === "dominant-highlight") {
       const accent = index === count - 1;
       return hslToHex(baseHue + (accent ? 155 + jitter : centered * 10), accent ? 92 : 64, accent ? 66 : 71);
     }
     return hslToHex(baseHue + centered * 42 + jitter, index === 0 ? 38 : 78, index === 0 ? 76 : 62 + random() * 9);
   });
 
-  return { name: paletteNames[strategy], colors };
+  return { direction, name: paletteNames[direction], colors };
 };
 
-const pickWeightedStudy = (random: Random, selected: MotionStudy[]) => {
-  const candidates = MOTION_STUDIES.filter(
+const pickWeightedStudy = (
+  random: Random,
+  selected: MotionStudy[],
+  studies: readonly MotionStudy[],
+) => {
+  const candidates = studies.filter(
     (candidate) => !selected.some(({ id }) => id === candidate.id),
   );
   const weights = candidates.map((candidate) => {
@@ -204,25 +263,62 @@ export function advancePhaseTimes(
   return phaseTimes;
 }
 
-export function createLabRecipe(effectCount: number, seed: number): LabRecipe {
-  const count = Math.trunc(clamp(effectCount, 2, LAB_MAX_LAYERS));
+const normalizeSettings = (settings: LabSettings): LabSettings => {
+  const lower = clamp(Math.min(settings.speedMin, settings.speedMax), 0.1, 2.5);
+  const upper = clamp(Math.max(settings.speedMin, settings.speedMax), lower + 0.1, 2.6);
+  return {
+    effectCount: Math.trunc(clamp(settings.effectCount, 1, LAB_MAX_LAYERS)),
+    mixIntensity: settings.mixIntensity in intensityRanges
+      ? settings.mixIntensity
+      : "balanced",
+    speedMin: lower,
+    speedMax: upper,
+    paletteDirection:
+      settings.paletteDirection === "random" ||
+      concretePaletteDirections.includes(
+        settings.paletteDirection as (typeof concretePaletteDirections)[number],
+      )
+        ? settings.paletteDirection
+        : "random",
+  };
+};
+
+export function createLabRecipe(
+  requested: LabSettings | number,
+  seed: number,
+  studies: readonly MotionStudy[] = MOTION_STUDIES,
+): LabRecipe | null {
+  const settings = normalizeSettings(
+    typeof requested === "number"
+      ? { ...DEFAULT_LAB_SETTINGS, effectCount: requested }
+      : requested,
+  );
+  const activeStudies = [
+    ...new Map(studies.map((motionStudy) => [motionStudy.id, motionStudy])).values(),
+  ];
+  if (activeStudies.length === 0) return null;
+  const count = Math.min(settings.effectCount, activeStudies.length);
   const random = seededRandom(seed);
   const selected: MotionStudy[] = [];
   for (let index = 0; index < count; index += 1) {
-    selected.push(pickWeightedStudy(random, selected));
+    selected.push(pickWeightedStudy(random, selected, activeStudies));
   }
 
-  const palette = createPalette(random, count);
+  const palette = createPalette(random, count, settings.paletteDirection);
+  const intensityRange = intensityRanges[settings.mixIntensity];
   const rawWeights = selected.map(() => 0.72 + random() * 0.56);
   const weightTotal = rawWeights.reduce((sum, weight) => sum + weight, 0);
   const layers = selected.map((motionStudy, index): LabLayer => {
-    const baseSpeed = motionStudy.speed ?? 0.55 + random() * 0.85;
-    const min = clamp(baseSpeed * (0.22 + random() * 0.25), 0.12, 1.4);
-    const max = clamp(
-      baseSpeed * (1.15 + random() * 0.85),
-      min + 0.28,
-      2.6,
+    const speedSpan = settings.speedMax - settings.speedMin;
+    const slotSpan = speedSpan / count;
+    const slotStart = settings.speedMin + slotSpan * index;
+    const min = slotStart + slotSpan * random() * 0.18;
+    const max = Math.min(
+      settings.speedMax,
+      slotStart + slotSpan * (0.68 + random() * 0.28),
     );
+    const intensityUnit = random();
+    const warpUnit = random();
 
     return {
       studyId: motionStudy.id,
@@ -232,10 +328,15 @@ export function createLabRecipe(effectCount: number, seed: number): LabRecipe {
       kernel: motionStudy.kernel,
       params: motionStudy.params,
       seed: Math.floor(random() * 4294967296) >>> 0,
-      intensity: 0.45 + random() * 0.5,
+      intensity:
+        intensityRange.intensity[0] +
+        intensityUnit *
+          (intensityRange.intensity[1] - intensityRange.intensity[0]),
       scale: 0.78 + random() * 0.62,
       angle: (random() - 0.5) * 1.2,
-      warp: 0.025 + random() * 0.075,
+      warp:
+        intensityRange.warp[0] +
+        warpUnit * (intensityRange.warp[1] - intensityRange.warp[0]),
       weight: rawWeights[index] / weightTotal,
       colorA: palette.colors[index % palette.colors.length],
       colorB: palette.colors[(index + 1) % palette.colors.length],
@@ -256,10 +357,52 @@ export function createLabRecipe(effectCount: number, seed: number): LabRecipe {
   return {
     seed: seed >>> 0,
     effectCount: count,
+    mixIntensity: settings.mixIntensity,
+    interactionStrength: intensityRange.strength,
     paletteName: palette.name,
+    paletteDirection: palette.direction,
     palette: palette.colors,
     layers,
     interactions,
+  };
+}
+
+export function createSingleEffectRecipe(config: CardConfig): LabRecipe {
+  const motionStudy = MOTION_STUDIES.find(({ id }) => id === config.studyId);
+  return {
+    seed: config.seed >>> 0,
+    effectCount: 1,
+    mixIntensity: "balanced",
+    interactionStrength: 1,
+    paletteName: paletteNames.snapshot,
+    paletteDirection: "snapshot",
+    palette: [config.colorA, config.colorB],
+    layers: [
+      {
+        studyId: config.studyId,
+        name: motionStudy?.name ?? config.label,
+        chapter: motionStudy?.chapter ?? Math.floor(config.studyId / 12),
+        variant: config.variant,
+        kernel: config.kernel,
+        params: config.params,
+        seed: config.seed >>> 0,
+        intensity: config.intensity,
+        scale: 1,
+        angle: 0,
+        warp: 0,
+        weight: 1,
+        colorA: config.colorA,
+        colorB: config.colorB,
+        speed: {
+          min: config.speed,
+          max: config.speed,
+          wanderRate: 0,
+          surgeRate: 0,
+          seed: config.seed >>> 0,
+        },
+      },
+    ],
+    interactions: [],
   };
 }
 
@@ -270,7 +413,7 @@ export function formatLabRecipe(recipe: LabRecipe) {
   const interactions = recipe.interactions
     .map((mode) => INTERACTION_LABELS[mode])
     .join(" + ");
-  return `${studies} / ${interactions}`;
+  return interactions ? `${studies} / ${interactions}` : studies;
 }
 
 export function packLabRecipe(recipe: LabRecipe): PackedLabRecipe {
@@ -300,6 +443,7 @@ export function packLabRecipe(recipe: LabRecipe): PackedLabRecipe {
   });
 
   return {
+    interactionStrength: recipe.interactionStrength,
     variants,
     kernels,
     modes,
