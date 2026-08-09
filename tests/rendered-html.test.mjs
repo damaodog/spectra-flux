@@ -229,9 +229,17 @@ test("server-renders the single-card random mix lab", async () => {
 
   assert.match(html, /随机实验室/);
   assert.match(html, /选择效果数量/);
+  assert.match(html, /混合强度/);
+  assert.match(html, /速度下限/);
+  assert.match(html, /速度上限/);
+  assert.match(html, /配色方向/);
+  assert.match(html, /柔和/);
+  assert.match(html, /均衡/);
+  assert.match(html, /激烈/);
+  assert.match(html, /展示到首页/);
   assert.match(html, /一键随机创作/);
   assert.match(html, /COLOR AS A LIVING SYSTEM\./);
-  [2, 3, 4, 5, 6].forEach((count) => {
+  [1, 2, 3, 4, 5, 6].forEach((count) => {
     assert.match(html, new RegExp(`>${count}<`));
   });
   assert.equal((html.match(/<canvas/g) || []).length, 1);

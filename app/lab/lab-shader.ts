@@ -27,6 +27,7 @@ precision highp float;
 uniform vec2 resolution;
 uniform vec2 viewportOrigin;
 uniform float globalTime;
+uniform float interactionStrength;
 uniform int layerCount;
 uniform float layerTimes[6];
 uniform float layerSeeds[6];
@@ -68,7 +69,11 @@ vec3 interactLayers(
   if(mode == 1){
     float seam = smoothstep(0.08, 0.42, min(accumulatedDensity, incomingDensity));
     vec3 impact = min(accumulated, incoming) * 0.84;
-    return mix(mix(accumulated, incoming, mask), impact, seam * 0.34);
+    return mix(
+      mix(accumulated, incoming, mask),
+      impact,
+      seam * 0.34 * interactionStrength
+    );
   }
   if(mode == 2) return mix(accumulated, incoming, smoothstep(0.34, 0.66, mask));
   if(mode == 3){
@@ -116,6 +121,8 @@ void main(){
       1.0
     );
 
+    float tunedLayerMask = clamp(layerMask * interactionStrength, 0.0, 1.0);
+
     if(i == 0){
       color = mix(vec3(0.985), incoming, 0.82 + transform.z * 0.18);
       accumulatedDensity = incomingDensity;
@@ -126,7 +133,7 @@ void main(){
         accumulatedDensity,
         incomingDensity,
         interactionModes[i],
-        layerMask
+        tunedLayerMask
       );
       accumulatedDensity = clamp(
         accumulatedDensity + incomingDensity * transform.z,
@@ -137,7 +144,7 @@ void main(){
 
     float signal = dot(incoming, vec3(0.299, 0.587, 0.114));
     interactionWarp += vec2(signal - 0.5, weaveNoise - 0.5) *
-      transform.w * (0.34 + incomingDensity * 0.66);
+      transform.w * interactionStrength * (0.34 + incomingDensity * 0.66);
   }
 
   color = clamp(color * 1.08, 0.0, 1.35);

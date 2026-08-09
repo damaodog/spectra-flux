@@ -110,6 +110,10 @@ export function LabPreview({
         resolution: gl.getUniformLocation(program, "resolution"),
         viewportOrigin: gl.getUniformLocation(program, "viewportOrigin"),
         globalTime: gl.getUniformLocation(program, "globalTime"),
+        interactionStrength: gl.getUniformLocation(
+          program,
+          "interactionStrength",
+        ),
         layerCount: gl.getUniformLocation(program, "layerCount"),
         layerTimes: gl.getUniformLocation(program, "layerTimes[0]"),
         layerSeeds: gl.getUniformLocation(program, "layerSeeds[0]"),
@@ -132,6 +136,7 @@ export function LabPreview({
       uploadRecipeRef.current = (next) => {
         const packed = packLabRecipe(next);
         gl.useProgram(program);
+        gl.uniform1f(uniforms.interactionStrength, packed.interactionStrength);
         gl.uniform1i(uniforms.layerCount, next.effectCount);
         gl.uniform1fv(uniforms.layerSeeds, packed.seeds);
         gl.uniform1fv(uniforms.layerIntensities, packed.intensities);

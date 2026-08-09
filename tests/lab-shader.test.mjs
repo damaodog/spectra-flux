@@ -8,6 +8,7 @@ import {
 test("shader has six slots and one active-layer loop", () => {
   assert.match(LAB_VERTEX_SHADER, /gl_Position/);
   assert.match(LAB_FRAGMENT_SHADER, /uniform int layerCount;/);
+  assert.match(LAB_FRAGMENT_SHADER, /uniform float interactionStrength;/);
   assert.match(LAB_FRAGMENT_SHADER, /uniform vec2 viewportOrigin;/);
   assert.match(
     LAB_FRAGMENT_SHADER,
@@ -26,6 +27,12 @@ test("shader reuses study rendering and has six interactions", () => {
     assert.match(LAB_FRAGMENT_SHADER, new RegExp(`mode == ${mode}`));
   });
   assert.match(LAB_FRAGMENT_SHADER, /interactionWarp \+=/);
+  assert.match(LAB_FRAGMENT_SHADER, /seam \* 0\.34 \* interactionStrength/);
+  assert.match(LAB_FRAGMENT_SHADER, /layerMask \* interactionStrength/);
+  assert.match(
+    LAB_FRAGMENT_SHADER,
+    /transform\.w \* interactionStrength/,
+  );
   assert.doesNotMatch(
     LAB_FRAGMENT_SHADER,
     /sampler2D|framebuffer|particles/i,
