@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "SPECTRA FLUX — Generative Motion Studio",
-  description: "SPECTRA FLUX：144 种 WebGL 单效果、随机混合实验室与本地策展首页。",
+  description: "SPECTRA FLUX：144 种 WebGL 单效果、高级随机混合实验室与共享动态策展首页。",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",

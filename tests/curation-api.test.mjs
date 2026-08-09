@@ -19,6 +19,7 @@ test("sends a same-origin credentialed showcase addition", async () => {
   assert.equal(calls[0][0], "/api/showcase");
   assert.equal(calls[0][1].method, "POST");
   assert.equal(calls[0][1].credentials, "same-origin");
+  assert.equal(calls[0][1].cache, "no-store");
   assert.deepEqual(JSON.parse(calls[0][1].body), { source: "lab", recipe });
 });
 

@@ -61,3 +61,18 @@ test("random lab includes five advanced constraint groups", async () => {
     assert.match(source, new RegExp(label));
   }
 });
+
+test("operator documentation explains shared curation, secrets, and embed usage", async () => {
+  const readme = await readFile("README.md", "utf8");
+  const gitignore = await readFile(".gitignore", "utf8");
+  const packageJson = JSON.parse(await readFile("package.json", "utf8"));
+  assert.equal(existsSync(".dev.vars.example"), true);
+  assert.match(readme, /管理模式/);
+  assert.match(readme, /Cloudflare KV/);
+  assert.match(readme, /复制 HTML/);
+  assert.doesNotMatch(readme, /策展与删除记录保存在浏览器 `localStorage`/);
+  assert.match(gitignore, /\.dev\.vars/);
+  assert.match(gitignore, /\*\.tsbuildinfo/);
+  assert.match(packageJson.scripts.test, /admin-auth\.test\.mjs/);
+  assert.match(packageJson.scripts["build:cloudflare"], /SPECTRA_CURATION_KV_ID/);
+});

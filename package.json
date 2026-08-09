@@ -8,8 +8,9 @@
   "scripts": {
     "dev": "vinext dev",
     "build": "vinext build",
+    "build:cloudflare": "node -e \"const id=process.env.SPECTRA_CURATION_KV_ID;if(!id||/^0+$/.test(id))throw new Error('SPECTRA_CURATION_KV_ID is required')\" && vinext build",
     "start": "vinext start",
-    "test": "npm run build && node --test tests/card-core.test.mjs tests/catalog-shader.test.mjs tests/motion-catalog.test.mjs tests/lab-core.test.mjs tests/lab-shader.test.mjs tests/curation-core.test.mjs tests/library-core.test.mjs tests/atlas-renderers.test.mjs tests/rendered-html.test.mjs",
+    "test": "npm run build && node --test tests/admin-auth.test.mjs tests/atlas-renderers.test.mjs tests/card-core.test.mjs tests/catalog-shader.test.mjs tests/curation-api.test.mjs tests/curation-core.test.mjs tests/embed-core.test.mjs tests/embed-page.test.mjs tests/lab-core.test.mjs tests/lab-shader.test.mjs tests/library-core.test.mjs tests/motion-catalog.test.mjs tests/rendered-html.test.mjs tests/site-copy.test.mjs tests/worker-api.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern .worktrees",
     "db:generate": "drizzle-kit generate"
   },

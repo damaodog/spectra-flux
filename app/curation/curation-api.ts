@@ -27,6 +27,7 @@ export function createCurationApi(fetcher: Fetcher = fetch) {
     try {
       response = await fetcher(path, {
         ...init,
+        cache: "no-store",
         credentials: "same-origin",
         headers: {
           ...(init.body ? { "content-type": "application/json" } : {}),

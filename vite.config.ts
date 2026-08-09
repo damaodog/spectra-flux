@@ -18,7 +18,7 @@ const localBindingConfig = {
   name: "spectra-flux",
   main: "./worker/index.ts",
   compatibility_flags: ["nodejs_compat"],
-  compatibility_date: "2026-08-09",
+  compatibility_date: "2026-05-22",
   secrets: {
     required: ["SPECTRA_ADMIN_PASSWORD", "SPECTRA_SESSION_SECRET"],
   },

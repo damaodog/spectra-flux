@@ -14,6 +14,10 @@ work/
 .DS_Store
 *.pem
 .env*
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+*.tsbuildinfo
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
