@@ -114,6 +114,8 @@ export function LabPreview({
           program,
           "interactionStrength",
         ),
+        densityScale: gl.getUniformLocation(program, "densityScale"),
+        edgeSharpness: gl.getUniformLocation(program, "edgeSharpness"),
         layerCount: gl.getUniformLocation(program, "layerCount"),
         layerTimes: gl.getUniformLocation(program, "layerTimes[0]"),
         layerSeeds: gl.getUniformLocation(program, "layerSeeds[0]"),
@@ -127,6 +129,7 @@ export function LabPreview({
         layerColorsA: gl.getUniformLocation(program, "layerColorsA[0]"),
         layerColorsB: gl.getUniformLocation(program, "layerColorsB[0]"),
         layerTransforms: gl.getUniformLocation(program, "layerTransforms[0]"),
+        layerOffsets: gl.getUniformLocation(program, "layerOffsets[0]"),
         interactionModes: gl.getUniformLocation(
           program,
           "interactionModes[0]",
@@ -137,6 +140,8 @@ export function LabPreview({
         const packed = packLabRecipe(next);
         gl.useProgram(program);
         gl.uniform1f(uniforms.interactionStrength, packed.interactionStrength);
+        gl.uniform1f(uniforms.densityScale, packed.densityScale);
+        gl.uniform1f(uniforms.edgeSharpness, packed.edgeSharpness);
         gl.uniform1i(uniforms.layerCount, next.effectCount);
         gl.uniform1fv(uniforms.layerSeeds, packed.seeds);
         gl.uniform1fv(uniforms.layerIntensities, packed.intensities);
@@ -146,6 +151,7 @@ export function LabPreview({
         gl.uniform3fv(uniforms.layerColorsA, packed.colorsA);
         gl.uniform3fv(uniforms.layerColorsB, packed.colorsB);
         gl.uniform4fv(uniforms.layerTransforms, packed.transforms);
+        gl.uniform2fv(uniforms.layerOffsets, packed.offsets);
         gl.uniform1iv(uniforms.interactionModes, packed.modes);
       };
 

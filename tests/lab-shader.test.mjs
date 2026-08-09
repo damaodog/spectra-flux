@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   LAB_FRAGMENT_SHADER,
@@ -48,4 +49,20 @@ test("shader preserves white entry and compresses dense color", () => {
     LAB_FRAGMENT_SHADER,
     /color = color \/ \(vec3\(0\.82\) \+ color \* 0\.28\)/,
   );
+});
+
+test("shader exposes advanced density edge and composition uniforms", () => {
+  assert.match(LAB_FRAGMENT_SHADER, /uniform float densityScale;/);
+  assert.match(LAB_FRAGMENT_SHADER, /uniform float edgeSharpness;/);
+  assert.match(LAB_FRAGMENT_SHADER, /uniform vec2 layerOffsets\[6\];/);
+});
+
+test("both mixed-card renderers upload advanced uniforms", async () => {
+  const previewSource = await readFile("app/lab/lab-preview.tsx", "utf8");
+  const atlasSource = await readFile("app/render/recipe-atlas.tsx", "utf8");
+  for (const source of [previewSource, atlasSource]) {
+    assert.match(source, /uniform1f\([^\n]*densityScale/);
+    assert.match(source, /uniform1f\([^\n]*edgeSharpness/);
+    assert.match(source, /uniform2fv\([^\n]*layerOffsets/);
+  }
 });

@@ -55,6 +55,11 @@ export type LabSettings = {
   speedMin: number;
   speedMax: number;
   paletteDirection: PaletteDirection;
+  interactionBias?: InteractionBias;
+  rhythm?: RhythmDirection;
+  composition?: CompositionDirection;
+  density?: DensityDirection;
+  edge?: EdgeDirection;
 };
 
 export const DEFAULT_LAB_SETTINGS: LabSettings = {
@@ -126,6 +131,8 @@ export type LabRecipe = {
 
 export type PackedLabRecipe = {
   interactionStrength: number;
+  densityScale: number;
+  edgeSharpness: number;
   variants: Int32Array;
   kernels: Int32Array;
   modes: Int32Array;
@@ -135,6 +142,7 @@ export type PackedLabRecipe = {
   colorsA: Float32Array;
   colorsB: Float32Array;
   transforms: Float32Array;
+  offsets: Float32Array;
 };
 
 type Random = () => number;
@@ -161,6 +169,50 @@ const intensityRanges = {
   balanced: { intensity: [0.45, 0.95], warp: [0.025, 0.1], strength: 1 },
   intense: { intensity: [0.64, 1], warp: [0.055, 0.14], strength: 1.32 },
 } as const;
+
+const interactionBiasOptions = [
+  "free",
+  "blend",
+  "collision",
+  "weave",
+  "erode",
+  "light",
+  "difference",
+] as const;
+const rhythmOptions = [
+  "wander",
+  "breath",
+  "alternating",
+  "pulse",
+  "flow",
+] as const;
+const compositionOptions = [
+  "automatic",
+  "horizontal",
+  "center-collision",
+  "pincer",
+  "vortex",
+  "interlace",
+] as const;
+const densityOptions = ["thin", "standard", "dense"] as const;
+const edgeOptions = ["soft", "mixed", "sharp"] as const;
+const densityScales: Record<ResolvedDensity, number> = {
+  thin: 0.72,
+  standard: 1,
+  dense: 1.42,
+};
+const edgeSharpnesses: Record<ResolvedEdge, number> = {
+  soft: 0.68,
+  mixed: 1,
+  sharp: 1.55,
+};
+const rhythmSurgeMix: Record<ResolvedRhythm, number> = {
+  wander: 0.18,
+  breath: 0.32,
+  alternating: 0.58,
+  pulse: 0.72,
+  flow: 0.1,
+};
 
 const LEGACY_RECIPE_DEFAULTS = {
   interactionBias: "free",
@@ -322,7 +374,18 @@ export function advancePhaseTimes(
   return phaseTimes;
 }
 
-const normalizeSettings = (settings: LabSettings): LabSettings => {
+const normalizeRequestedOption = <T extends string>(
+  value: unknown,
+  options: readonly T[],
+  fallback: T,
+): T | "random" =>
+  value === "random"
+    ? "random"
+    : typeof value === "string" && options.includes(value as T)
+      ? (value as T)
+      : fallback;
+
+const normalizeSettings = (settings: LabSettings): Required<LabSettings> => {
   const lower = clamp(Math.min(settings.speedMin, settings.speedMax), 0.1, 2.5);
   const upper = clamp(Math.max(settings.speedMin, settings.speedMax), lower + 0.1, 2.6);
   return {
@@ -339,6 +402,31 @@ const normalizeSettings = (settings: LabSettings): LabSettings => {
       )
         ? settings.paletteDirection
         : "random",
+    interactionBias: normalizeRequestedOption(
+      settings.interactionBias,
+      interactionBiasOptions,
+      LEGACY_RECIPE_DEFAULTS.interactionBias,
+    ),
+    rhythm: normalizeRequestedOption(
+      settings.rhythm,
+      rhythmOptions,
+      LEGACY_RECIPE_DEFAULTS.rhythm,
+    ),
+    composition: normalizeRequestedOption(
+      settings.composition,
+      compositionOptions,
+      LEGACY_RECIPE_DEFAULTS.composition,
+    ),
+    density: normalizeRequestedOption(
+      settings.density,
+      densityOptions,
+      LEGACY_RECIPE_DEFAULTS.density,
+    ),
+    edge: normalizeRequestedOption(
+      settings.edge,
+      edgeOptions,
+      LEGACY_RECIPE_DEFAULTS.edge,
+    ),
   };
 };
 
@@ -352,32 +440,11 @@ const recipePaletteDirections = new Set<RecipePaletteDirection>([
   ...concretePaletteDirections,
   "snapshot",
 ]);
-const interactionBiases = new Set<ResolvedInteractionBias>([
-  "free",
-  "blend",
-  "collision",
-  "weave",
-  "erode",
-  "light",
-  "difference",
-]);
-const rhythms = new Set<ResolvedRhythm>([
-  "wander",
-  "breath",
-  "alternating",
-  "pulse",
-  "flow",
-]);
-const compositions = new Set<ResolvedComposition>([
-  "automatic",
-  "horizontal",
-  "center-collision",
-  "pincer",
-  "vortex",
-  "interlace",
-]);
-const densities = new Set<ResolvedDensity>(["thin", "standard", "dense"]);
-const edges = new Set<ResolvedEdge>(["soft", "mixed", "sharp"]);
+const interactionBiases = new Set<ResolvedInteractionBias>(interactionBiasOptions);
+const rhythms = new Set<ResolvedRhythm>(rhythmOptions);
+const compositions = new Set<ResolvedComposition>(compositionOptions);
+const densities = new Set<ResolvedDensity>(densityOptions);
+const edges = new Set<ResolvedEdge>(edgeOptions);
 
 const optionalEnum = <T extends string>(
   value: unknown,
@@ -553,6 +620,112 @@ export function normalizeLabRecipe(value: unknown): LabRecipe | null {
   };
 }
 
+const resolveOption = <T extends string>(
+  requested: T | "random",
+  options: readonly T[],
+  random: Random,
+): T =>
+  requested === "random"
+    ? options[Math.floor(random() * options.length)]
+    : requested;
+
+const createSpeedProfile = (
+  settings: Required<LabSettings>,
+  rhythm: ResolvedRhythm,
+  random: Random,
+  index: number,
+  count: number,
+): SpeedProfile => {
+  const span = settings.speedMax - settings.speedMin;
+  const between = (from: number, to: number) =>
+    settings.speedMin + span * (from + random() * (to - from));
+  let min: number;
+  let max: number;
+  let wanderRate: number;
+  let surgeRate: number;
+
+  if (rhythm === "breath") {
+    min = between(0.24, 0.34);
+    max = between(0.56, 0.68);
+    wanderRate = 0.06 + random() * 0.06;
+    surgeRate = 0.07 + random() * 0.07;
+  } else if (rhythm === "alternating") {
+    min = between(0.04, 0.14);
+    max = between(0.86, 0.98);
+    wanderRate = 0.1 + random() * 0.1;
+    surgeRate = 0.3 + random() * 0.22;
+  } else if (rhythm === "pulse") {
+    min = between(0.02, 0.08);
+    max = between(0.9, 0.99);
+    wanderRate = 0.04 + random() * 0.06;
+    surgeRate = 0.18 + random() * 0.14;
+  } else if (rhythm === "flow") {
+    min = between(0.56, 0.68);
+    max = between(0.86, 0.98);
+    wanderRate = 0.15 + random() * 0.14;
+    surgeRate = 0.04 + random() * 0.07;
+  } else {
+    const slotSpan = span / count;
+    const slotStart = settings.speedMin + slotSpan * index;
+    min = slotStart + slotSpan * random() * 0.18;
+    max = Math.min(
+      settings.speedMax,
+      slotStart + slotSpan * (0.68 + random() * 0.28),
+    );
+    wanderRate = 0.12 + random() * 0.24;
+    surgeRate = 0.035 + random() * 0.08;
+  }
+
+  return {
+    min,
+    max: Math.max(min, max),
+    wanderRate,
+    surgeRate,
+    surgeMix: rhythmSurgeMix[rhythm],
+    seed: Math.floor(random() * 4294967296) >>> 0,
+  };
+};
+
+const compositionTransform = (
+  composition: ResolvedComposition,
+  index: number,
+  count: number,
+  fallbackAngle: number,
+) => {
+  const side = index % 2 === 0 ? -1 : 1;
+  if (composition === "horizontal") {
+    return { offsetX: side * 0.3, offsetY: (index / Math.max(1, count - 1) - 0.5) * 0.12, angle: 0 };
+  }
+  if (composition === "center-collision") {
+    return { offsetX: side * 0.32, offsetY: side * 0.04, angle: side * -0.16 };
+  }
+  if (composition === "pincer") {
+    const lane = index % 3;
+    return { offsetX: side * (lane === 1 ? 0.18 : 0.38), offsetY: (lane - 1) * 0.13, angle: side * -0.28 };
+  }
+  if (composition === "vortex") {
+    const theta = (Math.PI * 2 * index) / count;
+    return {
+      offsetX: Math.cos(theta) * 0.26,
+      offsetY: Math.sin(theta) * 0.26,
+      angle: theta + Math.PI / 2,
+    };
+  }
+  if (composition === "interlace") {
+    return { offsetX: side * 0.22, offsetY: -side * 0.2, angle: side * 0.62 };
+  }
+  return { offsetX: 0, offsetY: 0, angle: fallbackAngle };
+};
+
+const interactionModeFor = (
+  bias: ResolvedInteractionBias,
+  random: Random,
+): InteractionMode => {
+  if (bias === "free") return Math.floor(random() * 6) as InteractionMode;
+  const preferred = interactionBiasOptions.indexOf(bias) - 1;
+  return (random() < 0.72 ? preferred : Math.floor(random() * 6)) as InteractionMode;
+};
+
 export function createLabRecipe(
   requested: LabSettings | number,
   seed: number,
@@ -569,6 +742,19 @@ export function createLabRecipe(
   if (activeStudies.length === 0) return null;
   const count = Math.min(settings.effectCount, activeStudies.length);
   const random = seededRandom(seed);
+  const interactionBias = resolveOption(
+    settings.interactionBias,
+    interactionBiasOptions,
+    random,
+  );
+  const rhythm = resolveOption(settings.rhythm, rhythmOptions, random);
+  const composition = resolveOption(
+    settings.composition,
+    compositionOptions,
+    random,
+  );
+  const density = resolveOption(settings.density, densityOptions, random);
+  const edge = resolveOption(settings.edge, edgeOptions, random);
   const selected: MotionStudy[] = [];
   for (let index = 0; index < count; index += 1) {
     selected.push(pickWeightedStudy(random, selected, activeStudies));
@@ -579,16 +765,16 @@ export function createLabRecipe(
   const rawWeights = selected.map(() => 0.72 + random() * 0.56);
   const weightTotal = rawWeights.reduce((sum, weight) => sum + weight, 0);
   const layers = selected.map((motionStudy, index): LabLayer => {
-    const speedSpan = settings.speedMax - settings.speedMin;
-    const slotSpan = speedSpan / count;
-    const slotStart = settings.speedMin + slotSpan * index;
-    const min = slotStart + slotSpan * random() * 0.18;
-    const max = Math.min(
-      settings.speedMax,
-      slotStart + slotSpan * (0.68 + random() * 0.28),
-    );
     const intensityUnit = random();
     const warpUnit = random();
+    const fallbackAngle = (random() - 0.5) * 1.2;
+    const transform = compositionTransform(
+      composition,
+      index,
+      count,
+      fallbackAngle,
+    );
+    const densityIntensity = density === "thin" ? 0.82 : density === "dense" ? 1.12 : 1;
 
     return {
       studyId: motionStudy.id,
@@ -599,32 +785,29 @@ export function createLabRecipe(
       params: motionStudy.params,
       seed: Math.floor(random() * 4294967296) >>> 0,
       intensity:
-        intensityRange.intensity[0] +
-        intensityUnit *
-          (intensityRange.intensity[1] - intensityRange.intensity[0]),
+        Math.min(
+          1,
+          (intensityRange.intensity[0] +
+            intensityUnit *
+              (intensityRange.intensity[1] - intensityRange.intensity[0])) *
+            densityIntensity,
+        ),
       scale: 0.78 + random() * 0.62,
-      angle: (random() - 0.5) * 1.2,
+      angle: transform.angle,
       warp:
         intensityRange.warp[0] +
         warpUnit * (intensityRange.warp[1] - intensityRange.warp[0]),
       weight: rawWeights[index] / weightTotal,
       colorA: palette.colors[index % palette.colors.length],
       colorB: palette.colors[(index + 1) % palette.colors.length],
-      speed: {
-        min,
-        max,
-        wanderRate: 0.12 + random() * 0.24,
-        surgeRate: 0.035 + random() * 0.08,
-        surgeMix: LEGACY_RECIPE_DEFAULTS.surgeMix,
-        seed: Math.floor(random() * 4294967296) >>> 0,
-      },
-      offsetX: LEGACY_RECIPE_DEFAULTS.offsetX,
-      offsetY: LEGACY_RECIPE_DEFAULTS.offsetY,
+      speed: createSpeedProfile(settings, rhythm, random, index, count),
+      offsetX: transform.offsetX,
+      offsetY: transform.offsetY,
     };
   });
   const interactions = Array.from(
     { length: count - 1 },
-    () => Math.floor(random() * 6) as InteractionMode,
+    () => interactionModeFor(interactionBias, random),
   );
 
   return {
@@ -637,13 +820,13 @@ export function createLabRecipe(
     palette: palette.colors,
     layers,
     interactions,
-    interactionBias: LEGACY_RECIPE_DEFAULTS.interactionBias,
-    rhythm: LEGACY_RECIPE_DEFAULTS.rhythm,
-    composition: LEGACY_RECIPE_DEFAULTS.composition,
-    density: LEGACY_RECIPE_DEFAULTS.density,
-    edge: LEGACY_RECIPE_DEFAULTS.edge,
-    densityScale: LEGACY_RECIPE_DEFAULTS.densityScale,
-    edgeSharpness: LEGACY_RECIPE_DEFAULTS.edgeSharpness,
+    interactionBias,
+    rhythm,
+    composition,
+    density,
+    edge,
+    densityScale: densityScales[density],
+    edgeSharpness: edgeSharpnesses[edge],
   };
 }
 
@@ -716,6 +899,7 @@ export function packLabRecipe(recipe: LabRecipe): PackedLabRecipe {
   const colorsA = new Float32Array(LAB_MAX_LAYERS * 3);
   const colorsB = new Float32Array(LAB_MAX_LAYERS * 3);
   const transforms = new Float32Array(LAB_MAX_LAYERS * 4);
+  const offsets = new Float32Array(LAB_MAX_LAYERS * 2);
 
   recipe.layers.forEach((layer, index) => {
     variants[index] = layer.variant;
@@ -730,10 +914,13 @@ export function packLabRecipe(recipe: LabRecipe): PackedLabRecipe {
       [layer.scale, layer.angle, layer.weight, layer.warp],
       index * 4,
     );
+    offsets.set([layer.offsetX, layer.offsetY], index * 2);
   });
 
   return {
     interactionStrength: recipe.interactionStrength,
+    densityScale: recipe.densityScale,
+    edgeSharpness: recipe.edgeSharpness,
     variants,
     kernels,
     modes,
@@ -743,5 +930,6 @@ export function packLabRecipe(recipe: LabRecipe): PackedLabRecipe {
     colorsA,
     colorsB,
     transforms,
+    offsets,
   };
 }

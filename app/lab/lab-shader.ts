@@ -28,6 +28,8 @@ uniform vec2 resolution;
 uniform vec2 viewportOrigin;
 uniform float globalTime;
 uniform float interactionStrength;
+uniform float densityScale;
+uniform float edgeSharpness;
 uniform int layerCount;
 uniform float layerTimes[6];
 uniform float layerSeeds[6];
@@ -38,6 +40,7 @@ uniform vec4 layerParams[6];
 uniform vec3 layerColorsA[6];
 uniform vec3 layerColorsB[6];
 uniform vec4 layerTransforms[6];
+uniform vec2 layerOffsets[6];
 uniform int interactionModes[6];
 out vec4 outColor;
 
@@ -107,10 +110,12 @@ void main(){
     float cosine = cos(turn);
     float sine = sin(turn);
     mat2 rotation = mat2(cosine, -sine, sine, cosine);
-    vec2 localUv = rotation * (uv - 0.5) / max(transform.x, 0.25) + 0.5;
+    vec2 localUv = rotation * (uv - 0.5 + layerOffsets[i]) / max(transform.x, 0.25) + 0.5;
     vec2 sampleUv = localUv + interactionWarp;
-    vec3 incoming = renderStudy(sampleUv);
-    float incomingDensity = clamp(length(incoming - vec3(0.985)) * 1.32, 0.0, 1.0);
+    vec2 densityUv = (sampleUv - 0.5) * densityScale + 0.5;
+    vec3 incoming = renderStudy(densityUv);
+    float rawDensity = clamp(length(incoming - vec3(0.985)) * 1.32, 0.0, 1.0);
+    float incomingDensity = pow(max(rawDensity, 0.0001), edgeSharpness);
     float weaveNoise = noise(
       sampleUv * (2.6 + float(i) * 0.37) +
       vec2(globalTime * 0.021, -globalTime * 0.016)

@@ -37,6 +37,84 @@ test("normalizes version-one recipes with stable version-two defaults", () => {
   );
 });
 
+test("resolves advanced random constraints deterministically", () => {
+  const settings = {
+    ...DEFAULT_LAB_SETTINGS,
+    effectCount: 4,
+    mixIntensity: "intense",
+    speedMin: 0.4,
+    speedMax: 2.4,
+    interactionBias: "collision",
+    rhythm: "alternating",
+    composition: "center-collision",
+    density: "dense",
+    edge: "sharp",
+  };
+  const first = createLabRecipe(settings, 8128);
+  const second = createLabRecipe(settings, 8128);
+
+  assert.ok(first && second);
+  assert.deepEqual(first, second);
+  assert.equal(first.interactionBias, "collision");
+  assert.equal(first.rhythm, "alternating");
+  assert.equal(first.composition, "center-collision");
+  assert.equal(first.density, "dense");
+  assert.equal(first.edge, "sharp");
+  assert.ok(first.densityScale > 1);
+  assert.ok(first.edgeSharpness > 1);
+  assert.ok(first.layers.some((layer) => layer.offsetX < 0));
+  assert.ok(first.layers.some((layer) => layer.offsetX > 0));
+});
+
+test("random advanced constraints resolve to concrete recipe values", () => {
+  const recipes = Array.from({ length: 16 }, (_, seed) =>
+    createLabRecipe(
+      {
+        ...DEFAULT_LAB_SETTINGS,
+        interactionBias: "random",
+        rhythm: "random",
+        composition: "random",
+        density: "random",
+        edge: "random",
+      },
+      seed + 1,
+    ),
+  );
+  assert.ok(recipes.every(Boolean));
+  for (const key of [
+    "interactionBias",
+    "rhythm",
+    "composition",
+    "density",
+    "edge",
+  ]) {
+    const values = recipes.map((recipe) => recipe[key]);
+    assert.ok(values.every((value) => value !== "random"));
+    assert.ok(new Set(values).size > 1, `${key} should vary across seeds`);
+  }
+});
+
+test("rhythm profiles stay inside selected bounds and visibly differ", () => {
+  const base = {
+    ...DEFAULT_LAB_SETTINGS,
+    effectCount: 3,
+    speedMin: 0.25,
+    speedMax: 2.2,
+  };
+  const breath = createLabRecipe({ ...base, rhythm: "breath" }, 501);
+  const pulse = createLabRecipe({ ...base, rhythm: "pulse" }, 501);
+  const flow = createLabRecipe({ ...base, rhythm: "flow" }, 501);
+  assert.ok(breath && pulse && flow);
+  assert.notDeepEqual(breath.layers[0].speed, pulse.layers[0].speed);
+  assert.notDeepEqual(pulse.layers[0].speed, flow.layers[0].speed);
+  for (const recipe of [breath, pulse, flow]) {
+    for (let step = 0; step < 300; step += 1) {
+      const speed = velocityAt(recipe.layers[0].speed, step / 30);
+      assert.ok(speed >= 0.25 && speed <= 2.2);
+    }
+  }
+});
+
 test("recipes honor 1–6 effects, active studies, and deterministic settings", () => {
   for (let count = 1; count <= LAB_MAX_LAYERS; count += 1) {
     const settings = { ...DEFAULT_LAB_SETTINGS, effectCount: count };
@@ -178,6 +256,13 @@ test("packing creates six fixed slots and readable copy", () => {
   assert.equal(packed.colorsA.length, LAB_MAX_LAYERS * 3);
   assert.equal(packed.transforms.length, LAB_MAX_LAYERS * 4);
   assert.equal(packed.interactionStrength, recipe.interactionStrength);
+  assert.equal(packed.densityScale, recipe.densityScale);
+  assert.equal(packed.edgeSharpness, recipe.edgeSharpness);
+  assert.equal(packed.offsets.length, LAB_MAX_LAYERS * 2);
+  assert.deepEqual(
+    Array.from(packed.offsets.slice(0, recipe.layers.length * 2)),
+    recipe.layers.flatMap((layer) => [layer.offsetX, layer.offsetY]),
+  );
   assert.match(formatLabRecipe(recipe), / × /);
   recipe.interactions.forEach((mode) => assert.ok(mode in INTERACTION_LABELS));
 });
