@@ -1,16 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { SPECTRA_ADMIN_SESSION_EVENT } from "../admin/use-admin";
 import type { LabRecipe } from "../lab/lab-core";
+import { createCurationApi, CurationApiError } from "./curation-api";
 import {
-  CURATION_EVENT,
   CURATION_STORAGE_KEY,
   EMPTY_CURATION_STATE,
-  addShowcaseEntry,
-  deleteStudy as deleteStudyFromState,
-  normalizeCurationState,
   parseCurationState,
-  removeShowcaseEntry,
   serializeCurationState,
   type CurationState,
 } from "./curation-core";
@@ -18,118 +15,155 @@ import {
 export type CurationController = {
   state: CurationState;
   hydrated: boolean;
+  saving: boolean;
   warning: string | null;
-  add(source: "library" | "lab", recipe: LabRecipe): boolean;
-  remove(entryId: string): void;
-  deleteStudy(studyId: number): void;
+  legacyState: CurationState | null;
+  add(source: "library" | "lab", recipe: LabRecipe): Promise<boolean>;
+  remove(entryId: string): Promise<void>;
+  deleteStudy(studyId: number): Promise<void>;
+  migrateLegacy(): Promise<void>;
+  refresh(): Promise<void>;
   exportJson(): string;
 };
 
+const api = createCurationApi();
 const freshEmptyState = (): CurationState => ({
-  version: 1,
+  ...EMPTY_CURATION_STATE,
   deletedStudyIds: [],
   showcase: [],
 });
 
+const messageForError = (code: string) => {
+  if (code === "NETWORK_ERROR") return "网络连接失败，当前内容未改变";
+  if (code === "CURATION_CORRUPT") return "共享策展暂时无法读取，请稍后重试";
+  if (code === "SESSION_REQUIRED") return "管理会话已失效，请重新登录";
+  return "操作失败，当前内容未改变";
+};
+
 export function useCuration(): CurationController {
   const [state, setState] = useState<CurationState>(freshEmptyState);
   const [hydrated, setHydrated] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [warning, setWarning] = useState<string | null>(null);
+  const [legacyState, setLegacyState] = useState<CurationState | null>(null);
   const stateRef = useRef<CurationState>(EMPTY_CURATION_STATE);
 
-  const receive = useCallback((next: unknown) => {
-    const normalized = normalizeCurationState(next);
-    if (!normalized) return false;
-    stateRef.current = normalized;
-    setState(normalized);
-    return true;
+  const receive = useCallback((next: CurationState) => {
+    stateRef.current = next;
+    setState(next);
+    setWarning(null);
   }, []);
 
-  const commit = useCallback((next: CurationState) => {
-    const normalized = normalizeCurationState(next);
-    if (!normalized) return;
-    stateRef.current = normalized;
-    setState(normalized);
-    try {
-      window.localStorage.setItem(
-        CURATION_STORAGE_KEY,
-        serializeCurationState(normalized),
-      );
-      setWarning(null);
-    } catch {
-      setWarning("仅本次会话保存");
+  const receiveError = useCallback((error: unknown) => {
+    if (error instanceof CurationApiError) {
+      if (error.state) {
+        stateRef.current = error.state;
+        setState(error.state);
+      }
+      if (error.code === "SESSION_REQUIRED") {
+        window.dispatchEvent(new Event(SPECTRA_ADMIN_SESSION_EVENT));
+      }
+      setWarning(messageForError(error.code));
+      return;
     }
-    window.dispatchEvent(
-      new CustomEvent(CURATION_EVENT, { detail: normalized }),
-    );
+    setWarning(messageForError("REQUEST_FAILED"));
   }, []);
+
+  const refresh = useCallback(async () => {
+    try {
+      const result = await api.read();
+      receive(result.state);
+    } catch (error) {
+      receiveError(error);
+    } finally {
+      setHydrated(true);
+    }
+  }, [receive, receiveError]);
 
   useEffect(() => {
     let active = true;
-    const onCuration = (event: Event) => {
-      receive((event as CustomEvent).detail);
-    };
-    const onStorage = (event: StorageEvent) => {
-      if (event.key !== CURATION_STORAGE_KEY) return;
-      if (event.newValue === null) {
-        receive(freshEmptyState());
-        return;
-      }
-      const parsed = parseCurationState(event.newValue);
-      if (parsed) receive(parsed);
-      else setWarning("策展数据无法读取");
-    };
-    window.addEventListener(CURATION_EVENT, onCuration);
-    window.addEventListener("storage", onStorage);
     queueMicrotask(() => {
       if (!active) return;
       try {
         const serialized = window.localStorage.getItem(CURATION_STORAGE_KEY);
-        if (serialized !== null) {
-          const parsed = parseCurationState(serialized);
-          if (parsed) receive(parsed);
-          else setWarning("策展数据无法读取");
+        const parsed = serialized ? parseCurationState(serialized) : null;
+        if (parsed && (parsed.showcase.length > 0 || parsed.deletedStudyIds.length > 0)) {
+          setLegacyState(parsed);
         }
       } catch {
-        setWarning("仅本次会话保存");
+        setWarning("无法读取本机旧策展，但共享首页不受影响");
       }
-      setHydrated(true);
+      void refresh();
     });
     return () => {
       active = false;
-      window.removeEventListener(CURATION_EVENT, onCuration);
-      window.removeEventListener("storage", onStorage);
     };
-  }, [receive]);
+  }, [refresh]);
+
+  const mutate = useCallback(
+    async (operation: () => Promise<{ state: CurationState }>) => {
+      setSaving(true);
+      try {
+        const result = await operation();
+        receive(result.state);
+        return result;
+      } catch (error) {
+        receiveError(error);
+        return null;
+      } finally {
+        setSaving(false);
+      }
+    },
+    [receive, receiveError],
+  );
 
   const add = useCallback(
-    (source: "library" | "lab", recipe: LabRecipe) => {
-      const result = addShowcaseEntry(stateRef.current, {
-        id: crypto.randomUUID(),
-        createdAt: Date.now(),
-        source,
-        recipe,
-      });
-      if (result.added) commit(result.state);
-      return result.added;
+    async (source: "library" | "lab", recipe: LabRecipe) => {
+      const result = await mutate(() => api.addShowcase(source, recipe));
+      return Boolean(result?.added);
     },
-    [commit],
+    [mutate],
   );
 
   const remove = useCallback(
-    (entryId: string) => commit(removeShowcaseEntry(stateRef.current, entryId)),
-    [commit],
+    async (entryId: string) => {
+      await mutate(() => api.removeShowcase(entryId));
+    },
+    [mutate],
   );
 
   const deleteStudy = useCallback(
-    (studyId: number) => commit(deleteStudyFromState(stateRef.current, studyId)),
-    [commit],
+    async (studyId: number) => {
+      await mutate(() => api.deleteStudy(studyId));
+    },
+    [mutate],
   );
 
-  const exportJson = useCallback(
-    () => serializeCurationState(stateRef.current),
-    [],
-  );
+  const migrateLegacy = useCallback(async () => {
+    if (!legacyState) return;
+    const result = await mutate(() => api.importLocal(legacyState));
+    if (!result) return;
+    try {
+      window.localStorage.removeItem(CURATION_STORAGE_KEY);
+    } catch {
+      // The server copy is already safe; a blocked local removal is harmless.
+    }
+    setLegacyState(null);
+  }, [legacyState, mutate]);
 
-  return { state, hydrated, warning, add, remove, deleteStudy, exportJson };
+  const exportJson = useCallback(() => serializeCurationState(stateRef.current), []);
+
+  return {
+    state,
+    hydrated,
+    saving,
+    warning,
+    legacyState,
+    add,
+    remove,
+    deleteStudy,
+    migrateLegacy,
+    refresh,
+    exportJson,
+  };
 }
