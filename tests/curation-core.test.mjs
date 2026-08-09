@@ -8,6 +8,7 @@ import {
   EMPTY_CURATION_STATE,
   addShowcaseEntry,
   deleteStudy,
+  normalizeCurationState,
   parseCurationState,
   recipeFingerprint,
   removeShowcaseEntry,
@@ -62,7 +63,7 @@ test("exact recipes deduplicate while changed recipes remain addable", () => {
 
 test("malformed serialized state is rejected and valid state is normalized", () => {
   assert.equal(parseCurationState("{"), null);
-  assert.equal(parseCurationState(JSON.stringify({ version: 2 })), null);
+  assert.equal(parseCurationState(JSON.stringify({ version: 3 })), null);
   const parsed = parseCurationState(
     JSON.stringify({
       version: 1,
@@ -72,7 +73,7 @@ test("malformed serialized state is rejected and valid state is normalized", () 
     }),
   );
   assert.deepEqual(parsed, {
-    version: 1,
+    version: 2,
     deletedStudyIds: [3],
     showcase: [],
   });
@@ -80,6 +81,27 @@ test("malformed serialized state is rejected and valid state is normalized", () 
     Object.keys(JSON.parse(serializeCurationState(parsed))).sort(),
     ["deletedStudyIds", "showcase", "version"],
   );
+});
+
+test("version-one curation upgrades without dropping saved work", () => {
+  const upgraded = normalizeCurationState({
+    version: 1,
+    deletedStudyIds: [7],
+    showcase: [
+      {
+        id: "legacy-entry",
+        createdAt: 12,
+        source: "lab",
+        recipe,
+      },
+    ],
+  });
+
+  assert.ok(upgraded);
+  assert.equal(upgraded.version, 2);
+  assert.deepEqual(upgraded.deletedStudyIds, [7]);
+  assert.equal(upgraded.showcase.length, 1);
+  assert.equal(upgraded.showcase[0].recipe.rhythm, "wander");
 });
 
 test("invalid entries are removed and duplicate IDs keep the newest valid entry", () => {

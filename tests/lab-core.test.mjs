@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import * as labCore from "../app/lab/lab-core.ts";
 import {
   DEFAULT_LAB_SETTINGS,
   INTERACTION_LABELS,
@@ -12,6 +13,29 @@ import {
   velocityAt,
 } from "../app/lab/lab-core.ts";
 import { MOTION_STUDIES } from "../app/motion-catalog.ts";
+
+test("normalizes version-one recipes with stable version-two defaults", () => {
+  assert.equal(typeof labCore.normalizeLabRecipe, "function");
+  const legacy = createLabRecipe(DEFAULT_LAB_SETTINGS, 90210);
+  assert.ok(legacy);
+  const normalized = labCore.normalizeLabRecipe(structuredClone(legacy));
+  assert.ok(normalized);
+  assert.equal(normalized.interactionBias, "free");
+  assert.equal(normalized.rhythm, "wander");
+  assert.equal(normalized.composition, "automatic");
+  assert.equal(normalized.density, "standard");
+  assert.equal(normalized.edge, "mixed");
+  assert.equal(normalized.densityScale, 1);
+  assert.equal(normalized.edgeSharpness, 1);
+  assert.deepEqual(
+    normalized.layers.map((layer) => [
+      layer.offsetX,
+      layer.offsetY,
+      layer.speed.surgeMix,
+    ]),
+    normalized.layers.map(() => [0, 0, 0.18]),
+  );
+});
 
 test("recipes honor 1–6 effects, active studies, and deterministic settings", () => {
   for (let count = 1; count <= LAB_MAX_LAYERS; count += 1) {
