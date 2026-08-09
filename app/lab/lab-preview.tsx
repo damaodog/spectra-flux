@@ -12,12 +12,14 @@ import { LAB_FRAGMENT_SHADER, LAB_VERTEX_SHADER } from "./lab-shader";
 export type LabPreviewProps = {
   recipe: LabRecipe;
   playing: boolean;
+  active?: boolean;
   onFallbackChange: (fallback: boolean) => void;
 };
 
 export function LabPreview({
   recipe,
   playing,
+  active = true,
   onFallbackChange,
 }: LabPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -35,9 +37,10 @@ export function LabPreview({
   }, [onFallbackChange]);
 
   useEffect(() => {
-    playingRef.current = playing;
+    playingRef.current = playing && active;
     lastNowRef.current = 0;
-  }, [playing]);
+    drawRef.current?.(performance.now());
+  }, [active, playing]);
 
   useEffect(() => {
     recipeRef.current = recipe;
@@ -214,7 +217,7 @@ export function LabPreview({
   }, []);
 
   useEffect(() => {
-    if (!playing) return;
+    if (!playing || !active) return;
     let frame = 0;
     const draw = (now: number) => {
       drawRef.current?.(now);
@@ -222,7 +225,7 @@ export function LabPreview({
     };
     frame = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(frame);
-  }, [playing]);
+  }, [active, playing]);
 
   return <canvas ref={canvasRef} aria-hidden="true" />;
 }

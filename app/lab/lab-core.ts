@@ -705,10 +705,11 @@ const compositionTransform = (
   }
   if (composition === "vortex") {
     const theta = (Math.PI * 2 * index) / count;
+    const angle = ((theta + Math.PI * 1.5) % (Math.PI * 2)) - Math.PI;
     return {
       offsetX: Math.cos(theta) * 0.26,
       offsetY: Math.sin(theta) * 0.26,
-      angle: theta + Math.PI / 2,
+      angle,
     };
   }
   if (composition === "interlace") {

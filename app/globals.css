@@ -152,6 +152,40 @@ footer {
   --card-height: 100px;
 }
 
+.embed-page {
+  width: 100vw;
+  height: 100vh;
+  min-height: 100px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: transparent;
+}
+
+.embed-card {
+  width: min(100vw, 400px);
+  height: min(100vh, 100px);
+  margin: 0;
+}
+
+.embed-card .card-copy h1 { margin: 0; font: inherit; }
+.embed-fallback { display: none; }
+
+.embed-error {
+  width: min(100vw, 400px);
+  height: min(100vh, 100px);
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--line);
+  border-radius: 54px;
+  background: #fff;
+  color: var(--muted);
+  font: 650 10px/1 ui-monospace, monospace;
+  letter-spacing: .08em;
+}
+
 .lab-settings {
   margin: 0 0 24px;
   display: grid;
