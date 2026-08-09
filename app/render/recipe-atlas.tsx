@@ -286,7 +286,7 @@ export function RecipeAtlas({ entries, playing, onRemove }: RecipeAtlasProps) {
         return (
           <div className="card-study" key={entry.id}>
             <span className="study-meta">
-              {entry.source === "library" ? "单效果" : "随机混合"} · {recipe.effectCount} 层 · {recipe.paletteName}
+              {entry.source === "library" ? "单效果" : "随机混合"} · {recipe.effectCount} 层 · {recipe.paletteName} · <time dateTime={new Date(entry.createdAt).toISOString()}>{new Date(entry.createdAt).toLocaleString("zh-CN")}</time>
             </span>
             <article
               className="preview-card"

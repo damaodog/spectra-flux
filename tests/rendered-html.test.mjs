@@ -35,10 +35,24 @@ test("server-renders the empty curated homepage", async () => {
   assert.match(html, /class="gallery-panel workspace"/);
   assert.match(html, /策展首页/);
   assert.match(html, /尚未添加动态作品/);
+  assert.match(html, /进入效果库/);
+  assert.match(html, /开始随机创作/);
+  assert.match(html, /导出策展配置/);
   assert.match(html, /href="\/library"/);
   assert.match(html, /href="\/lab"/);
   assert.equal((html.match(/<canvas/g) || []).length, 0);
   assert.doesNotMatch(html, /一键全部随机/);
+});
+
+test("curated homepage paginates local recipes and exports normalized JSON", async () => {
+  const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(source, /useCuration\(\)/);
+  assert.match(source, /state\.showcase\.slice/);
+  assert.match(source, /exportJson\(\)/);
+  assert.match(source, /new Blob\(/);
+  assert.match(source, /URL\.createObjectURL\(/);
+  assert.match(source, /URL\.revokeObjectURL\(/);
+  assert.match(source, /onRemove=\{removeFromHome\}/);
 });
 
 test("the gallery shares one WebGL atlas across twelve 2D canvases", async () => {
