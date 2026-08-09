@@ -117,7 +117,12 @@ export default function Home() {
         </aside>
 
         <section className="gallery-panel workspace" aria-label="策展动态作品">
-          {visibleEntries.length > 0 ? (
+          {!hydrated ? (
+            <div className="showcase-loading" role="status">
+              <span className="eyebrow">SYNCING SHARED CURATION</span>
+              <p>正在加载共享作品…</p>
+            </div>
+          ) : visibleEntries.length > 0 ? (
             <RecipeAtlas
               entries={visibleEntries}
               playing={playing}

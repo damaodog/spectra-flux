@@ -41,10 +41,11 @@ test("built worker routes curation API before the page handler", async () => {
   });
 });
 
-test("server-renders the empty curated homepage", async () => {
+test("server-renders shared curation as loading before hydration", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   const html = await response.text();
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   assert.match(html, /<title>SPECTRA FLUX — Generative Motion Studio<\/title>/i);
   assert.match(html, /144 种 WebGL 单效果/);
   assert.match(html, />SPECTRA FLUX<\/a>/);
@@ -53,15 +54,20 @@ test("server-renders the empty curated homepage", async () => {
   assert.match(html, /class="control-rail-inner"/);
   assert.match(html, /class="gallery-panel workspace"/);
   assert.match(html, /策展首页/);
-  assert.match(html, /尚未添加动态作品/);
-  assert.match(html, /进入效果库/);
-  assert.match(html, /开始随机创作/);
+  assert.match(html, /正在加载共享作品/);
+  assert.match(html, /class="showcase-loading"/);
+  assert.doesNotMatch(html, /尚未添加动态作品/);
   assert.match(html, />管理</);
   assert.doesNotMatch(html, /导出策展配置/);
   assert.match(html, /href="\/library"/);
   assert.match(html, /href="\/lab"/);
   assert.equal((html.match(/<canvas/g) || []).length, 0);
   assert.doesNotMatch(html, /一键全部随机/);
+  assert.match(css, /\.showcase-loading\s*\{/);
+  assert.match(
+    css,
+    /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.showcase-loading::after/,
+  );
 });
 
 test("curated homepage paginates shared recipes and gates management controls", async () => {

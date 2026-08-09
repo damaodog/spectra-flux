@@ -540,6 +540,33 @@ footer {
   line-height: 1.7;
 }
 
+.showcase-loading {
+  width: min(100%, 400px);
+  margin: 0 auto;
+  color: var(--muted);
+}
+
+.showcase-loading p {
+  margin: 0 0 18px;
+  font-size: 12px;
+}
+
+.showcase-loading::after {
+  content: "";
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 1;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: linear-gradient(100deg, #fff 20%, #ececef 42%, #fff 64%);
+  background-size: 220% 100%;
+  animation: loading-sheen 1.4s ease-in-out infinite;
+}
+
+@keyframes loading-sheen {
+  to { background-position: -220% 0; }
+}
+
 .empty-showcase {
   width: min(100%, 620px);
   min-height: 440px;
@@ -864,6 +891,7 @@ footer {
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  .showcase-loading::after { animation: none; }
   .preview-card:hover {
     transform: none;
     box-shadow: 0 24px 64px rgba(27, 29, 35, .11), 0 3px 5px rgba(27, 29, 35, .07);
