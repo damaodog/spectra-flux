@@ -151,5 +151,5 @@ export function decodeEmbedRecipe(token: string): LabRecipe | null {
 export function buildEmbedSnippet(recipe: LabRecipe, origin: string) {
   const safeOrigin = new URL(origin).origin;
   const token = encodeEmbedRecipe(recipe);
-  return `<iframe src="${safeOrigin}/embed?recipe=${token}" title="SPECTRA dynamic card" width="400" height="100" loading="lazy" referrerpolicy="no-referrer" style="border:0;border-radius:54px;overflow:hidden"></iframe>`;
+  return `<iframe src="${safeOrigin}/embed?recipe=${token}" title="SPECTRA dynamic card" width="400" height="100" loading="lazy" referrerpolicy="no-referrer" style="border:0;border-radius:10px;overflow:hidden"></iframe>`;
 }

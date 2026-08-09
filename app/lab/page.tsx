@@ -151,7 +151,7 @@ export default function LabPage() {
   const cardStyle = {
     "--card-a": recipe.palette[0],
     "--card-b": recipe.palette[1] ?? recipe.palette[0],
-    "--card-radius": "54px",
+    "--card-radius": "10px",
     "--card-width": "400px",
     "--card-height": "100px",
   } as CSSProperties;

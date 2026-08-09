@@ -22,7 +22,7 @@ import { getActiveStudies, getLibraryPage } from "./library-core";
 const sharedCard = {
   title: "SPECTRA",
   subtitle: "COLOR AS A LIVING SYSTEM.",
-  radius: 54,
+  radius: 10,
   width: DEFAULT_CARD_WIDTH,
   height: DEFAULT_CARD_HEIGHT,
 };

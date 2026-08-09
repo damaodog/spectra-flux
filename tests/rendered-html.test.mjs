@@ -144,6 +144,21 @@ test("the gallery uses two columns and a 25 to 75 card split", async () => {
   );
 });
 
+test("curated cards use compact rows and ten-pixel corners", async () => {
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  const library = await readFile(new URL("../app/library/page.tsx", import.meta.url), "utf8");
+  const lab = await readFile(new URL("../app/lab/page.tsx", import.meta.url), "utf8");
+  const recipes = await readFile(new URL("../app/render/recipe-atlas.tsx", import.meta.url), "utf8");
+  const embed = await readFile(new URL("../app/embed/embed-card.tsx", import.meta.url), "utf8");
+
+  assert.match(css, /\.atlas-gallery\s*\{[^}]*gap:\s*30px 48px/s);
+  assert.match(css, /\.recipe-atlas \.card-study\s*\{[^}]*grid-template-columns:/s);
+  assert.match(css, /\.recipe-atlas \.card-actions\s*\{[^}]*grid-column:\s*2/s);
+  for (const source of [library, lab, recipes, embed]) {
+    assert.match(source, /"--card-radius": "10px"|radius: 10/);
+  }
+});
+
 test("SPECTRA FLUX uses a sticky left rail and responsive gallery", async () => {
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
 

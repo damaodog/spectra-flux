@@ -179,7 +179,7 @@ footer {
   align-items: center;
   justify-content: space-between;
   border: 1px solid var(--line);
-  border-radius: 54px;
+  border-radius: 10px;
   background: #fff;
   color: var(--muted);
   font: 650 10px/1 ui-monospace, monospace;
@@ -479,6 +479,25 @@ footer {
   width: min(100%, 400px);
   display: grid;
   gap: 8px;
+}
+
+.recipe-atlas .card-study {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.recipe-atlas .study-meta,
+.recipe-atlas .preview-card {
+  grid-column: 1 / -1;
+}
+
+.recipe-atlas .recipe-details {
+  grid-column: 1;
+  align-self: center;
+}
+
+.recipe-atlas .card-actions {
+  grid-column: 2;
+  align-items: center;
 }
 
 .card-actions {

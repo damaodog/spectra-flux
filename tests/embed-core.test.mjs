@@ -37,7 +37,7 @@ test("builds a safe fixed-size lazy iframe snippet", () => {
   assert.match(html, /loading="lazy"/);
   assert.match(html, /title="SPECTRA dynamic card"/);
   assert.match(html, /referrerpolicy="no-referrer"/);
-  assert.match(html, /border-radius:54px/);
+  assert.match(html, /border-radius:10px/);
   assert.match(html, /https:\/\/spectra\.8538690\.xyz\/embed\?recipe=/);
   assert.doesNotMatch(html, /\/path/);
 });
